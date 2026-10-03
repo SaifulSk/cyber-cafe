@@ -339,7 +339,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                       right: 0,
                       zIndex: 60,
                       marginTop: "4px",
-                      background: "#1e293b",
+                      background: "var(--bg-dropdown)",
                       border: "1px solid var(--border-active)",
                       borderRadius: "var(--radius-md)",
                       maxHeight: "160px",
@@ -393,7 +393,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             {/* Financials & Live Profit / Due Card */}
             <div
               style={{
-                background: "rgba(0, 0, 0, 0.35)",
+                background: "var(--bg-card-hover)",
                 border: "1px solid var(--border-subtle)",
                 borderRadius: "var(--radius-lg)",
                 padding: "16px",
@@ -543,7 +543,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   gap: "12px",
                   marginTop: "14px",
                   padding: "10px 14px",
-                  background: "rgba(255, 255, 255, 0.03)",
+                  background: "var(--bg-card)",
                   borderRadius: "var(--radius-md)",
                   border: "1px solid var(--border-subtle)",
                 }}

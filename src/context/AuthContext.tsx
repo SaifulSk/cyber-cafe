@@ -24,45 +24,21 @@ interface AuthContextType {
   loginUser: (email: string, pass: string) => Promise<void>;
   logoutUser: () => Promise<void>;
   updateKendraProfile: (details: Partial<UserProfile>) => void;
-  isDemoUser: boolean;
-  loginAsDemo: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const DEMO_USER_PROFILE: UserProfile = {
-  uid: "demo_csc_operator",
-  email: "operator@digitalseva.in",
-  displayName: "Operator",
-  kendraName: "Digital Seva Kendra",
-  phone: "",
-  cscId: "",
-  address: "",
-};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [isDemoUser, setIsDemoUser] = useState<boolean>(false);
 
   useEffect(() => {
-    // Check if demo user was active
-    const savedDemo = localStorage.getItem("sevadesk_demo_active");
-    if (savedDemo === "true") {
-      setIsDemoUser(true);
-      setUserProfile(DEMO_USER_PROFILE);
-      setLoading(false);
-      return;
-    }
-
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setCurrentUser(user);
-        setIsDemoUser(false);
-        // Load custom profile details from localStorage
         const savedMeta = localStorage.getItem(`sevadesk_profile_${user.uid}`);
-        let extraProfile = {};
+        let extraProfile: any = {};
         if (savedMeta) {
           try {
             extraProfile = JSON.parse(savedMeta);
@@ -71,11 +47,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUserProfile({
           uid: user.uid,
           email: user.email,
-          displayName: user.displayName || user.email?.split("@")[0] || "Operator",
-          kendraName: (extraProfile as any).kendraName || "Digital Seva Kendra",
-          phone: (extraProfile as any).phone || "",
-          cscId: (extraProfile as any).cscId || "",
-          address: (extraProfile as any).address || "",
+          displayName: user.displayName || extraProfile.displayName || user.email?.split("@")[0] || "Operator",
+          kendraName: extraProfile.kendraName || "Digital Seva Kendra",
+          phone: extraProfile.phone || "",
+          cscId: extraProfile.cscId || "",
+          address: extraProfile.address || "",
         });
       } else {
         setCurrentUser(null);
@@ -94,8 +70,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     kendraName: string,
     phone?: string
   ) => {
-    localStorage.removeItem("sevadesk_demo_active");
-    setIsDemoUser(false);
     const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
     if (userCredential.user) {
       await updateProfile(userCredential.user, { displayName: name });
@@ -117,13 +91,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const loginUser = async (email: string, pass: string) => {
-    localStorage.removeItem("sevadesk_demo_active");
-    setIsDemoUser(false);
     const userCredential = await signInWithEmailAndPassword(auth, email, pass);
     const user = userCredential.user;
     setCurrentUser(user);
     const savedMeta = localStorage.getItem(`sevadesk_profile_${user.uid}`);
-    let extra = {};
+    let extra: any = {};
     if (savedMeta) {
       try {
         extra = JSON.parse(savedMeta);
@@ -132,36 +104,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUserProfile({
       uid: user.uid,
       email: user.email,
-      displayName: user.displayName || "Operator",
-      kendraName: (extra as any).kendraName || "Digital Seva Kendra",
-      phone: (extra as any).phone || "",
-      cscId: (extra as any).cscId || "",
-      address: (extra as any).address || "",
+      displayName: user.displayName || extra.displayName || "Operator",
+      kendraName: extra.kendraName || "Digital Seva Kendra",
+      phone: extra.phone || "",
+      cscId: extra.cscId || "",
+      address: extra.address || "",
     });
   };
 
   const logoutUser = async () => {
-    localStorage.removeItem("sevadesk_demo_active");
-    setIsDemoUser(false);
     setUserProfile(null);
     setCurrentUser(null);
     await signOut(auth);
   };
 
-  const loginAsDemo = () => {
-    localStorage.setItem("sevadesk_demo_active", "true");
-    setIsDemoUser(true);
-    setUserProfile(DEMO_USER_PROFILE);
-    setCurrentUser(null);
-  };
-
   const updateKendraProfile = (details: Partial<UserProfile>) => {
-    if (!userProfile) return;
-    const updated = { ...userProfile, ...details };
+    if (!currentUser) return;
+    const updated = { ...(userProfile || {}), ...details, uid: currentUser.uid } as UserProfile;
     setUserProfile(updated);
-    if (userProfile.uid) {
-      localStorage.setItem(`sevadesk_profile_${userProfile.uid}`, JSON.stringify(updated));
-    }
+    localStorage.setItem(`sevadesk_profile_${currentUser.uid}`, JSON.stringify(updated));
   };
 
   return (
@@ -174,8 +135,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginUser,
         logoutUser,
         updateKendraProfile,
-        isDemoUser,
-        loginAsDemo,
       }}
     >
       {children}

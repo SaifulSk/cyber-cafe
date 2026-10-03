@@ -1,19 +1,19 @@
 import React from "react";
-import { Plus, User, ShieldCheck, Clock, LogIn, Settings } from "lucide-react";
+import { Plus, ShieldCheck, Sun, Moon, Settings, LogOut } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { useTheme } from "../../context/ThemeContext";
 
 interface NavbarProps {
   onOpenNewTask: () => void;
-  onOpenLogin: () => void;
   onOpenProfile: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   onOpenNewTask,
-  onOpenLogin,
   onOpenProfile,
 }) => {
-  const { currentUser, userProfile, isDemoUser } = useAuth();
+  const { userProfile, logoutUser } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   const todayStr = new Date().toLocaleDateString("en-IN", {
     weekday: "short",
@@ -25,7 +25,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="top-navbar">
       {/* Left: Kendra Identity */}
-      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
         <div
           style={{
             width: "36px",
@@ -36,81 +36,96 @@ export const Navbar: React.FC<NavbarProps> = ({
             alignItems: "center",
             justifyContent: "center",
             color: "#ffffff",
-            boxShadow: "0 0 15px rgba(6, 182, 212, 0.4)",
+            boxShadow: "0 2px 8px rgba(2, 132, 199, 0.3)",
+            flexShrink: 0,
           }}
         >
           <ShieldCheck size={20} />
         </div>
 
-        <div>
-          <h1 style={{ fontSize: "1.0625rem", fontWeight: 800, color: "var(--text-bright)", letterSpacing: "-0.01em", margin: 0 }}>
-            {userProfile?.kendraName || "Digital Seva Kendra & Cyber Cafe"}
+        <div style={{ minWidth: 0 }}>
+          <h1
+            style={{
+              fontSize: "1rem",
+              fontWeight: 800,
+              color: "var(--text-bright)",
+              letterSpacing: "-0.01em",
+              margin: 0,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {userProfile?.kendraName || "Digital Seva Kendra"}
           </h1>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.75rem", color: "var(--text-secondary)" }}>
-            <span>{todayStr}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.75rem", color: "var(--text-secondary)" }}>
+            <span className="hide-mobile">{todayStr}</span>
             {userProfile?.cscId && (
               <>
-                <span>•</span>
+                <span className="hide-mobile">•</span>
                 <span style={{ color: "var(--accent-primary)", fontWeight: 600 }}>{userProfile.cscId}</span>
               </>
-            )}
-            {isDemoUser && (
-              <span
-                style={{
-                  background: "rgba(245, 158, 11, 0.2)",
-                  color: "#fbbf24",
-                  padding: "1px 6px",
-                  borderRadius: "4px",
-                  fontSize: "0.6875rem",
-                  fontWeight: 700,
-                }}
-              >
-                DEMO MODE
-              </span>
             )}
           </div>
         </div>
       </div>
 
       {/* Right Controls */}
-      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-        <button onClick={onOpenNewTask} className="btn btn-primary">
-          <Plus size={16} /> <span className="hide-mobile">New Task Entry</span>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        {/* Light / Dark Mode Toggle */}
+        <button
+          onClick={toggleTheme}
+          className="btn btn-outline btn-sm"
+          style={{ padding: "7px 10px" }}
+          title={`Switch to ${theme === "light" ? "Dark" : "Light"} Mode`}
+        >
+          {theme === "light" ? <Moon size={15} /> : <Sun size={15} />}
+          <span className="hide-mobile">{theme === "light" ? "Dark" : "Light"}</span>
         </button>
 
-        {currentUser || isDemoUser ? (
-          <button
-            onClick={onOpenProfile}
-            className="btn btn-secondary"
-            style={{ padding: "6px 12px", display: "flex", alignItems: "center", gap: "8px" }}
-            title="Operator Settings"
+        {/* New Task CTA */}
+        <button onClick={onOpenNewTask} className="btn btn-primary btn-sm">
+          <Plus size={15} /> <span className="hide-mobile">New Task</span>
+        </button>
+
+        {/* Profile / Kendra Settings */}
+        <button
+          onClick={onOpenProfile}
+          className="btn btn-secondary btn-sm"
+          style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 10px" }}
+          title="Center Profile & Settings"
+        >
+          <div
+            style={{
+              width: "22px",
+              height: "22px",
+              borderRadius: "50%",
+              background: "rgba(2, 132, 199, 0.15)",
+              color: "var(--accent-primary)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 700,
+              fontSize: "0.6875rem",
+            }}
           >
-            <div
-              style={{
-                width: "26px",
-                height: "26px",
-                borderRadius: "50%",
-                background: "rgba(6, 182, 212, 0.2)",
-                color: "var(--accent-primary)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontWeight: 700,
-                fontSize: "0.75rem",
-              }}
-            >
-              {(userProfile?.displayName || "O").charAt(0).toUpperCase()}
-            </div>
-            <span style={{ fontSize: "0.8125rem", fontWeight: 600 }} className="hide-mobile">
-              {userProfile?.displayName || "Operator"}
-            </span>
-            <Settings size={14} style={{ color: "var(--text-muted)" }} />
-          </button>
-        ) : (
-          <button onClick={onOpenLogin} className="btn btn-secondary">
-            <LogIn size={15} /> Sign In
-          </button>
-        )}
+            {(userProfile?.displayName || "O").charAt(0).toUpperCase()}
+          </div>
+          <span style={{ fontSize: "0.8125rem", fontWeight: 600 }} className="hide-mobile">
+            {userProfile?.displayName || "Operator"}
+          </span>
+          <Settings size={13} style={{ color: "var(--text-muted)" }} />
+        </button>
+
+        {/* Sign Out Button */}
+        <button
+          onClick={logoutUser}
+          className="btn btn-outline btn-sm"
+          style={{ padding: "7px 10px" }}
+          title="Sign Out"
+        >
+          <LogOut size={15} />
+        </button>
       </div>
     </header>
   );

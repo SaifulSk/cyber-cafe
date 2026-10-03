@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from "react";
+import { ThemeProvider } from "./context/ThemeContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { DataProvider, useData } from "./context/DataContext";
 import { Navbar } from "./components/layout/Navbar";
 import { Sidebar, ViewType } from "./components/layout/Sidebar";
+import { LoginPage } from "./components/auth/LoginPage";
+
 import { DashboardView } from "./components/dashboard/DashboardView";
 import { TasksView } from "./components/tasks/TasksView";
 import { CalendarView } from "./components/calendar/CalendarView";
@@ -11,13 +14,14 @@ import { CustomerView } from "./components/customers/CustomerView";
 import { MasterMenu } from "./components/masters/MasterMenu";
 
 import { TaskModal } from "./components/tasks/TaskModal";
-import { LoginModal } from "./components/auth/LoginModal";
 import { UserProfileModal } from "./components/auth/UserProfileModal";
 import { SettleModal } from "./components/common/SettleModal";
 import { ReceiptModal } from "./components/common/ReceiptModal";
 import { TaskItem, ServiceCategory } from "./types";
+import { ShieldCheck } from "lucide-react";
 
 const MainAppContent: React.FC = () => {
+  const { currentUser, loading } = useAuth();
   const [currentView, setCurrentView] = useState<ViewType>("dashboard");
 
   // Modal States
@@ -25,9 +29,7 @@ const MainAppContent: React.FC = () => {
   const [taskToEdit, setTaskToEdit] = useState<TaskItem | null>(null);
   const [taskDefaultDate, setTaskDefaultDate] = useState<string | undefined>(undefined);
 
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-
   const [settleTask, setSettleTask] = useState<TaskItem | null>(null);
   const [receiptTask, setReceiptTask] = useState<TaskItem | null>(null);
 
@@ -35,10 +37,9 @@ const MainAppContent: React.FC = () => {
     new Date().toISOString().split("T")[0]
   );
 
-  // Keyboard shortcut listener
+  // Global Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger if user is typing in an input
       if (["INPUT", "TEXTAREA", "SELECT"].includes((e.target as HTMLElement).tagName)) {
         return;
       }
@@ -52,6 +53,49 @@ const MainAppContent: React.FC = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // 1. Loading state during auth initialization
+  if (loading) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "var(--bg-primary)",
+          color: "var(--text-main)",
+          gap: "16px",
+        }}
+      >
+        <div
+          style={{
+            width: "48px",
+            height: "48px",
+            borderRadius: "var(--radius-lg)",
+            background: "linear-gradient(135deg, var(--accent-primary) 0%, #0284c7 100%)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#ffffff",
+            boxShadow: "var(--shadow-glow)",
+          }}
+        >
+          <ShieldCheck size={28} />
+        </div>
+        <div style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--text-secondary)" }}>
+          Loading SevaDesk workspace...
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Unauthenticated: FIRST PAGE IS LOGIN
+  if (!currentUser) {
+    return <LoginPage />;
+  }
+
+  // 3. Authenticated: Render Main App Workspace
   const handleOpenNewTask = () => {
     setTaskToEdit(null);
     setTaskDefaultDate(undefined);
@@ -85,14 +129,13 @@ const MainAppContent: React.FC = () => {
 
   return (
     <div className="app-container">
-      {/* Sidebar (Desktop & Mobile) */}
+      {/* Sidebar (Desktop & Mobile Bottom Nav) */}
       <Sidebar currentView={currentView} onChangeView={setCurrentView} />
 
-      {/* Main App Content Area */}
+      {/* Main Content Area */}
       <div className="main-content">
         <Navbar
           onOpenNewTask={handleOpenNewTask}
-          onOpenLogin={() => setIsLoginModalOpen(true)}
           onOpenProfile={() => setIsProfileModalOpen(true)}
         />
 
@@ -149,11 +192,6 @@ const MainAppContent: React.FC = () => {
         defaultDate={taskDefaultDate}
       />
 
-      <LoginModal
-        isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
-      />
-
       <UserProfileModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
@@ -176,10 +214,12 @@ const MainAppContent: React.FC = () => {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <DataProvider>
-        <MainAppContent />
-      </DataProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <DataProvider>
+          <MainAppContent />
+        </DataProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

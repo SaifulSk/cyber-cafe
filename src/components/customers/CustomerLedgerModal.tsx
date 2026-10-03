@@ -127,7 +127,7 @@ export const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
               display: "grid",
               gridTemplateColumns: "repeat(3, 1fr)",
               gap: "12px",
-              background: "rgba(0,0,0,0.3)",
+              background: "var(--bg-card-hover)",
               padding: "14px",
               borderRadius: "var(--radius-lg)",
               border: "1px solid var(--border-subtle)",
