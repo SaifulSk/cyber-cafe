@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { X, Printer, CheckCircle, ShieldCheck } from "lucide-react";
 import { TaskItem } from "../../types";
 import { useAuth } from "../../context/AuthContext";
@@ -16,6 +16,15 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
   task,
 }) => {
   const { userProfile } = useAuth();
+
+  useEffect(() => {
+    if (isOpen && task) {
+      document.body.classList.add("modal-open");
+      return () => {
+        document.body.classList.remove("modal-open");
+      };
+    }
+  }, [isOpen, task]);
 
   if (!isOpen || !task) return null;
 
@@ -163,8 +172,27 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                   <div style={{ fontSize: "0.6875rem", color: "#64748b" }}>
                     Service: {formatCategoryLabel(task.serviceCategory)}
                   </div>
+                  {task.customFieldValues && Object.entries(task.customFieldValues).length > 0 && (
+                    <div style={{ marginTop: "4px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                      {Object.entries(task.customFieldValues).map(([k, v]) => (
+                        <span
+                          key={k}
+                          style={{
+                            fontSize: "0.6875rem",
+                            background: "#f1f5f9",
+                            padding: "2px 6px",
+                            borderRadius: "4px",
+                            color: "#334155",
+                            border: "1px solid #e2e8f0",
+                          }}
+                        >
+                          <strong>{k}:</strong> {v}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   {task.notes && (
-                    <div style={{ fontSize: "0.6875rem", color: "#64748b" }}>
+                    <div style={{ fontSize: "0.6875rem", color: "#64748b", marginTop: "2px" }}>
                       Details: {task.notes}
                     </div>
                   )}

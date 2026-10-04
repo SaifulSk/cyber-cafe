@@ -101,8 +101,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         />
       </div>
 
-      {/* Main Section: Recent Tasks (Left) & Quick Navigation (Right) */}
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "20px", alignItems: "start" }}>
+      {/* Main Section: Recent Tasks (Top on mobile) & Quick Navigation (Below on mobile) */}
+      <div className="dashboard-main-grid">
         {/* Recent Tasks List */}
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
@@ -140,7 +140,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           )}
         </div>
 
-        {/* Right Column: Shortcuts & Khata Alert */}
+        {/* Right / Consecutive Column: Shortcuts & Khata Alert */}
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           {/* Outstanding Khata Alert Box */}
           {overallStats.totalDue > 0 && (
@@ -201,6 +201,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               >
                 <Users size={15} style={{ color: "var(--purple-brand)" }} />
                 <span>Customer Directory & Dues</span>
+              </button>
+
+              <button
+                onClick={() => onChangeView("due_history")}
+                className="btn btn-secondary btn-sm"
+                style={{ justifyContent: "flex-start" }}
+              >
+                <Clock size={15} style={{ color: "var(--rose-due)" }} />
+                <span>Due Payments History</span>
               </button>
 
               <button

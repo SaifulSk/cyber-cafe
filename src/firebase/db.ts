@@ -11,7 +11,7 @@ import {
   writeBatch
 } from "firebase/firestore";
 import { db } from "./config";
-import { TaskItem, Customer, ServiceMasterItem } from "../types";
+import { TaskItem, Customer, ServiceMasterItem, DuePaymentRecord } from "../types";
 import { DEFAULT_SERVICE_MASTERS } from "./defaultData";
 
 // LocalStorage fallback keys
@@ -355,35 +355,108 @@ export const deleteServiceMasterItem = async (
 };
 
 /**
+ * Due Payment Records: Subscription & CRUD
+ */
+export const subscribeToDuePayments = (
+  userId: string,
+  onUpdate: (payments: DuePaymentRecord[]) => void
+) => {
+  const localKey = getLocalKey(userId, "due_payments");
+  const localList = loadLocal<DuePaymentRecord>(localKey, []);
+  onUpdate(localList);
+
+  const colRef = collection(db, "users", userId, "due_payments");
+  const q = query(colRef, orderBy("createdAt", "desc"));
+
+  const unsubscribe = onSnapshot(
+    q,
+    (snapshot) => {
+      const payments: DuePaymentRecord[] = [];
+      snapshot.forEach((doc) => {
+        payments.push({ id: doc.id, ...doc.data() } as DuePaymentRecord);
+      });
+      saveLocal(localKey, payments);
+      onUpdate(payments);
+    },
+    (error) => {
+      console.warn("Firestore due_payments snapshot error:", error.message);
+      onUpdate(loadLocal<DuePaymentRecord>(localKey, []));
+    }
+  );
+
+  return unsubscribe;
+};
+
+export const saveDuePaymentRecord = async (
+  userId: string,
+  paymentData: Omit<DuePaymentRecord, "id" | "userId" | "createdAt"> & { id?: string }
+): Promise<DuePaymentRecord> => {
+  const id = paymentData.id || `duepay_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const record: DuePaymentRecord = {
+    ...paymentData,
+    id,
+    userId,
+    createdAt: Date.now(),
+  };
+
+  const localKey = getLocalKey(userId, "due_payments");
+  const localList = loadLocal<DuePaymentRecord>(localKey, []);
+  const exists = localList.some((p) => p.id === id);
+  const updatedList = exists ? localList.map((p) => (p.id === id ? record : p)) : [record, ...localList];
+  saveLocal(localKey, updatedList);
+
+  try {
+    const docRef = doc(db, "users", userId, "due_payments", id);
+    await setDoc(docRef, record, { merge: true });
+  } catch (e: any) {
+    console.warn("Saved due payment record locally:", e?.message);
+  }
+
+  return record;
+};
+
+export const deleteDuePaymentRecord = async (
+  userId: string,
+  paymentId: string
+): Promise<void> => {
+  const localKey = getLocalKey(userId, "due_payments");
+  const localList = loadLocal<DuePaymentRecord>(localKey, []);
+  saveLocal(
+    localKey,
+    localList.filter((p) => p.id !== paymentId)
+  );
+
+  try {
+    await deleteDoc(doc(db, "users", userId, "due_payments", paymentId));
+  } catch (e: any) {
+    console.warn("Deleted due payment record locally:", e?.message);
+  }
+};
+
+/**
  * Settle Due Amount for a customer:
- * Records a settlement payment, marks or deducts due on existing pending tasks
+ * Records a settlement payment and links it to history
  */
 export const settleCustomerDue = async (
   userId: string,
   customerName: string,
   amountPaying: number,
   paymentMode: 'cash' | 'upi' | 'bank_transfer',
-  note?: string
-): Promise<void> => {
+  note?: string,
+  paidDate?: string,
+  paidTime?: string
+): Promise<DuePaymentRecord> => {
   const now = new Date();
-  const dateStr = now.toISOString().split("T")[0];
-  const timeStr = now.toTimeString().split(" ")[0].substring(0, 5);
+  const dateStr = paidDate || now.toISOString().split("T")[0];
+  const timeStr = paidTime || now.toTimeString().split(" ")[0].substring(0, 5);
 
-  // Create a settlement receipt task entry
-  await saveTaskItem(userId, {
-    title: `Due Payment Clearance: ${customerName}`,
-    serviceCategory: "other",
+  return await saveDuePaymentRecord(userId, {
     customerName,
-    date: dateStr,
-    time: timeStr,
-    amountIncurred: 0,
-    amountCharged: amountPaying,
-    amountPaid: amountPaying,
-    profit: 0,
-    dueAmount: 0,
+    taskTitle: `General Balance Payment`,
+    amount: amountPaying,
+    paidDate: dateStr,
+    paidTime: timeStr,
     paymentMode,
-    status: "completed",
     notes: note || `Outstanding dues settled for ${customerName}`,
-    referenceNo: `SETTLE-${Date.now().toString().slice(-6)}`,
   });
 };

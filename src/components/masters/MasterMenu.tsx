@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Layers,
   Users,
@@ -17,7 +17,7 @@ import {
   X,
   Check
 } from "lucide-react";
-import { ServiceMasterItem, ServiceCategory, Customer } from "../../types";
+import { ServiceMasterItem, ServiceCategory, Customer, CategoryCustomField } from "../../types";
 import { useData } from "../../context/DataContext";
 import { CategoryIcon, getCategoryColor, formatCategoryLabel } from "../common/CategoryIcon";
 import { CustomerModal } from "../customers/CustomerModal";
@@ -35,28 +35,47 @@ export const MasterMenu: React.FC = () => {
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState<boolean>(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
 
-  // Form states for service modal
+  // Form states for service modal (only category name and dynamic custom fields)
   const [srvName, setSrvName] = useState<string>("");
-  const [srvCost, setSrvCost] = useState<number | "">("");
-  const [srvFee, setSrvFee] = useState<number | "">("");
-  const [srvDesc, setSrvDesc] = useState<string>("");
+  const [srvFields, setSrvFields] = useState<CategoryCustomField[]>([]);
+  const [newFieldName, setNewFieldName] = useState<string>("");
+
+  // Background scroll lock when modal is open
+  useEffect(() => {
+    if (isServiceModalOpen || isCustomerModalOpen) {
+      document.body.classList.add("modal-open");
+      return () => document.body.classList.remove("modal-open");
+    }
+  }, [isServiceModalOpen, isCustomerModalOpen]);
 
   const openAddServiceModal = () => {
     setEditingService(null);
     setSrvName("");
-    setSrvCost(0);
-    setSrvFee(0);
-    setSrvDesc("");
+    setSrvFields([]);
+    setNewFieldName("");
     setIsServiceModalOpen(true);
   };
 
   const openEditServiceModal = (item: ServiceMasterItem) => {
     setEditingService(item);
     setSrvName(item.name);
-    setSrvCost(item.defaultIncurredCost);
-    setSrvFee(item.defaultFee);
-    setSrvDesc(item.description || "");
+    setSrvFields(item.customFields || []);
+    setNewFieldName("");
     setIsServiceModalOpen(true);
+  };
+
+  const handleAddField = () => {
+    const trimmed = newFieldName.trim();
+    if (!trimmed) return;
+    setSrvFields((prev) => [
+      ...prev,
+      { id: `field_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`, name: trimmed }
+    ]);
+    setNewFieldName("");
+  };
+
+  const handleRemoveField = (id: string) => {
+    setSrvFields((prev) => prev.filter((f) => f.id !== id));
   };
 
   const handleSaveService = async (e: React.FormEvent) => {
@@ -67,11 +86,11 @@ export const MasterMenu: React.FC = () => {
     const data = {
       name: cleanName,
       category: cleanName,
-      defaultIncurredCost: Number(srvCost) || 0,
-      defaultFee: Number(srvFee) || 0,
+      customFields: srvFields,
+      defaultIncurredCost: 0,
+      defaultFee: 0,
       icon: cleanName,
       color: getCategoryColor(cleanName),
-      description: srvDesc.trim() || undefined,
       isActive: true,
     };
 
@@ -170,7 +189,7 @@ export const MasterMenu: React.FC = () => {
                 No Master Categories Configured Yet
               </h3>
               <p style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", maxWidth: "420px", margin: "6px auto 14px" }}>
-                Add your common categories (e.g. Recharge, AEPS, Electric Bill, Ration Card, Voter Card) to create your custom Master Menu.
+                Add your common categories to create your custom Master Menu.
               </p>
               <button onClick={openAddServiceModal} className="btn btn-primary btn-sm">
                 <Plus size={14} /> Add First Category
@@ -186,8 +205,6 @@ export const MasterMenu: React.FC = () => {
             >
               {services.map((srv) => {
               const color = srv.color || getCategoryColor(srv.category);
-              const margin = srv.defaultFee - srv.defaultIncurredCost;
-              const marginPercent = srv.defaultFee > 0 ? ((margin / srv.defaultFee) * 100).toFixed(0) : 0;
 
               return (
                 <div
@@ -253,45 +270,35 @@ export const MasterMenu: React.FC = () => {
                     </div>
                   </div>
 
-                  {srv.description && (
-                    <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)", lineHeight: 1.4 }}>
-                      {srv.description}
-                    </p>
-                  )}
-
-                  {/* Pricing Matrix */}
-                  <div
-                    style={{
-                      background: "rgba(0,0,0,0.25)",
-                      padding: "10px 14px",
-                      borderRadius: "var(--radius-md)",
-                      border: "1px solid var(--border-subtle)",
-                      display: "grid",
-                      gridTemplateColumns: "repeat(3, 1fr)",
-                      gap: "8px",
-                      textAlign: "center",
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontSize: "0.6875rem", color: "var(--text-muted)" }}>Default Cost</div>
-                      <div className="font-mono" style={{ fontSize: "0.9375rem", fontWeight: 700, color: "var(--text-bright)" }}>
-                        ₹{srv.defaultIncurredCost}
+                  {/* Custom Fields Tags */}
+                  <div>
+                    <span style={{ fontSize: "0.6875rem", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>
+                      Dynamic Task Fields ({srv.customFields?.length || 0}):
+                    </span>
+                    {srv.customFields && srv.customFields.length > 0 ? (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                        {srv.customFields.map((f) => (
+                          <span
+                            key={f.id}
+                            style={{
+                              fontSize: "0.75rem",
+                              padding: "2px 8px",
+                              borderRadius: "var(--radius-full)",
+                              background: "rgba(6, 182, 212, 0.1)",
+                              color: "var(--accent-primary)",
+                              border: "1px solid rgba(6, 182, 212, 0.25)",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {f.name}
+                          </span>
+                        ))}
                       </div>
-                    </div>
-
-                    <div>
-                      <div style={{ fontSize: "0.6875rem", color: "var(--text-muted)" }}>Default Fee</div>
-                      <div className="font-mono" style={{ fontSize: "0.9375rem", fontWeight: 700, color: "var(--accent-primary)" }}>
-                        ₹{srv.defaultFee}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div style={{ fontSize: "0.6875rem", color: "var(--emerald-profit)" }}>Est. Profit</div>
-                      <div className="font-mono" style={{ fontSize: "0.9375rem", fontWeight: 700, color: "var(--emerald-profit)" }}>
-                        +₹{margin} ({marginPercent}%)
-                      </div>
-                    </div>
+                    ) : (
+                      <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontStyle: "italic" }}>
+                        Standard task fields only
+                      </span>
+                    )}
                   </div>
                 </div>
               );
@@ -321,7 +328,7 @@ export const MasterMenu: React.FC = () => {
 
           {customers.length === 0 ? (
             <div style={{ textAlign: "center", padding: "30px", color: "var(--text-secondary)" }}>
-              No customer master records found. Customers are automatically added when you enter tasks, or you can add them manually.
+              No customer master records found. Customers are automatically saved when you enter tasks, or you can add them manually.
             </div>
           ) : (
             <div style={{ overflowX: "auto" }}>
@@ -330,9 +337,9 @@ export const MasterMenu: React.FC = () => {
                   <tr style={{ borderBottom: "1px solid var(--border-subtle)", textAlign: "left", color: "var(--text-muted)" }}>
                     <th style={{ padding: "10px 14px" }}>Customer Name</th>
                     <th style={{ padding: "10px 14px" }}>Phone</th>
-                    <th style={{ padding: "10px 14px" }}>Aadhaar (Last 4)</th>
-                    <th style={{ padding: "10px 14px" }}>Village / Area</th>
-                    <th style={{ padding: "10px 14px" }}>Notes</th>
+                    <th style={{ padding: "10px 14px" }}>WhatsApp</th>
+                    <th style={{ padding: "10px 14px" }}>Email</th>
+                    <th style={{ padding: "10px 14px" }}>Residence</th>
                     <th style={{ padding: "10px 14px", textAlign: "right" }}>Actions</th>
                   </tr>
                 </thead>
@@ -350,14 +357,14 @@ export const MasterMenu: React.FC = () => {
                       <td style={{ padding: "12px 14px", color: "var(--text-secondary)" }}>
                         {c.phone || "—"}
                       </td>
-                      <td style={{ padding: "12px 14px", fontFamily: "monospace" }}>
-                        {c.aadhaarLast4 ? `**** ${c.aadhaarLast4}` : "—"}
+                      <td style={{ padding: "12px 14px", color: "var(--text-secondary)" }}>
+                        {c.whatsapp || "—"}
                       </td>
                       <td style={{ padding: "12px 14px", color: "var(--text-secondary)" }}>
-                        {c.villageOrArea || "—"}
+                        {c.email || "—"}
                       </td>
-                      <td style={{ padding: "12px 14px", color: "var(--text-muted)", fontStyle: "italic", maxWidth: "200px" }}>
-                        {c.notes || "—"}
+                      <td style={{ padding: "12px 14px", color: "var(--text-secondary)" }}>
+                        {c.residence || c.villageOrArea || c.address || "—"}
                       </td>
                       <td style={{ padding: "12px 14px", textAlign: "right" }}>
                         <div style={{ display: "inline-flex", gap: "6px" }}>
@@ -368,6 +375,7 @@ export const MasterMenu: React.FC = () => {
                             }}
                             className="btn btn-sm btn-outline"
                             style={{ padding: "4px 8px" }}
+                            title="Edit Customer"
                           >
                             <Edit2 size={12} />
                           </button>
@@ -379,6 +387,7 @@ export const MasterMenu: React.FC = () => {
                             }}
                             className="btn btn-sm btn-danger-outline"
                             style={{ padding: "4px 8px" }}
+                            title="Delete Customer"
                           >
                             <Trash2 size={12} />
                           </button>
@@ -393,7 +402,7 @@ export const MasterMenu: React.FC = () => {
         </div>
       )}
 
-      {/* Service Modal */}
+      {/* Category Modal (Only Category Name + Dynamic Custom Fields) */}
       {isServiceModalOpen && (
         <div className="modal-overlay" onClick={() => setIsServiceModalOpen(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "520px" }}>
@@ -411,55 +420,91 @@ export const MasterMenu: React.FC = () => {
             </div>
 
             <form onSubmit={handleSaveService}>
-              <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label">Category Name *</label>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="e.g. Recharge, AEPS, Electric Bill, Ration Card, Voter Card, PAN Card..."
+                    placeholder="Enter category name"
                     value={srvName}
                     onChange={(e) => setSrvName(e.target.value)}
                     required
+                    autoFocus
                   />
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">Default Incurred Cost (₹)</label>
-                    <input
-                      type="number"
-                      step="any"
-                      min="0"
-                      className="form-input font-mono"
-                      value={srvCost}
-                      onChange={(e) => setSrvCost(e.target.value === "" ? "" : Number(e.target.value))}
-                    />
+                {/* Custom Fields Configurator */}
+                <div style={{ marginTop: "4px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                    <label className="form-label" style={{ margin: 0 }}>
+                      Custom Fields for this Category (Optional)
+                    </label>
+                    <span style={{ fontSize: "0.75rem", color: "var(--accent-primary)", fontWeight: 600 }}>
+                      Prompted during task entry
+                    </span>
                   </div>
+                  <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginBottom: "10px" }}>
+                    Add extra information to record when creating a task in this category (such as Phone Number, Consumer ID, Vehicle No, Token No).
+                  </p>
 
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">Default Customer Fee (₹)</label>
+                  {/* List of Custom Fields */}
+                  {srvFields.length > 0 && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "12px" }}>
+                      {srvFields.map((f, idx) => (
+                        <div
+                          key={f.id}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            padding: "8px 12px",
+                            background: "rgba(0,0,0,0.2)",
+                            border: "1px solid var(--border-subtle)",
+                            borderRadius: "var(--radius-md)",
+                          }}
+                        >
+                          <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: "var(--text-bright)" }}>
+                            {idx + 1}. {f.name}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveField(f.id)}
+                            className="btn btn-sm btn-danger-outline"
+                            style={{ padding: "3px 6px" }}
+                            title="Remove Field"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add Field Input */}
+                  <div style={{ display: "flex", gap: "8px" }}>
                     <input
-                      type="number"
-                      step="any"
-                      min="0"
-                      className="form-input font-mono"
-                      value={srvFee}
-                      onChange={(e) => setSrvFee(e.target.value === "" ? "" : Number(e.target.value))}
-                      required
+                      type="text"
+                      className="form-input"
+                      placeholder="Enter field label"
+                      value={newFieldName}
+                      onChange={(e) => setNewFieldName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddField();
+                        }
+                      }}
                     />
+                    <button
+                      type="button"
+                      onClick={handleAddField}
+                      className="btn btn-secondary"
+                      style={{ flexShrink: 0 }}
+                    >
+                      <Plus size={14} /> Add Field
+                    </button>
                   </div>
-                </div>
-
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">Short Description / Operator Guidance</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. Minimum commission ₹20 per ₹1000 cash out"
-                    value={srvDesc}
-                    onChange={(e) => setSrvDesc(e.target.value)}
-                  />
                 </div>
               </div>
 

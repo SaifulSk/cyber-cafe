@@ -119,6 +119,25 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               Ref/Ack: <span className="font-mono" style={{ color: "var(--accent-primary)" }}>{task.referenceNo}</span>
             </div>
           )}
+          {task.customFieldValues && Object.keys(task.customFieldValues).length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "6px" }}>
+              {Object.entries(task.customFieldValues).map(([k, v]) => (
+                <span
+                  key={k}
+                  style={{
+                    fontSize: "0.75rem",
+                    padding: "2px 8px",
+                    borderRadius: "var(--radius-sm)",
+                    background: "rgba(255, 255, 255, 0.05)",
+                    border: "1px solid var(--border-subtle)",
+                    color: "var(--text-secondary)",
+                  }}
+                >
+                  <strong style={{ color: "var(--text-muted)" }}>{k}:</strong> {v}
+                </span>
+              ))}
+            </div>
+          )}
           {task.notes && (
             <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "2px", fontStyle: "italic" }}>
               "{task.notes}"

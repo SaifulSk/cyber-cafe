@@ -9,11 +9,12 @@ import {
   ShieldCheck,
   TrendingUp,
   Sparkles,
-  Smartphone
+  Smartphone,
+  History
 } from "lucide-react";
 import { useData } from "../../context/DataContext";
 
-export type ViewType = "dashboard" | "tasks" | "calendar" | "day" | "customers" | "masters";
+export type ViewType = "dashboard" | "tasks" | "calendar" | "day" | "customers" | "due_history" | "masters";
 
 interface SidebarProps {
   currentView: ViewType;
@@ -29,7 +30,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) =
     { id: "calendar", label: "Calendar View", icon: Calendar },
     { id: "day", label: "Day View & Drawer", icon: CalendarDays },
     { id: "customers", label: "Customer Khata", icon: Users },
-    { id: "masters", label: "Master Menu", icon: Layers, badge: "Config" },
+    { id: "due_history", label: "Due History", icon: History },
+    { id: "masters", label: "Master Menu", icon: Layers },
   ];
 
   return (

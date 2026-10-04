@@ -132,7 +132,7 @@ export const CustomerView: React.FC = () => {
             type="text"
             className="form-input"
             style={{ paddingLeft: "36px" }}
-            placeholder="Search customer by name, mobile, or village..."
+            placeholder="Search customer by name, mobile, or residence..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -236,11 +236,12 @@ export const CustomerView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Village / Aadhaar info */}
-                {(cust.villageOrArea || cust.aadhaarLast4) && (
+                {/* Residence / WhatsApp / Email info */}
+                {(cust.residence || cust.villageOrArea || cust.whatsapp || cust.email) && (
                   <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                    {cust.villageOrArea && <span>📍 {cust.villageOrArea}</span>}
-                    {cust.aadhaarLast4 && <span>🆔 Aadhaar: **** {cust.aadhaarLast4}</span>}
+                    {(cust.residence || cust.villageOrArea) && <span>📍 {cust.residence || cust.villageOrArea}</span>}
+                    {cust.whatsapp && <span>💬 WA: {cust.whatsapp}</span>}
+                    {cust.email && <span>✉️ {cust.email}</span>}
                   </div>
                 )}
 

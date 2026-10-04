@@ -275,7 +275,7 @@ export const LoginPage: React.FC = () => {
                       type="text"
                       className="form-input"
                       style={{ paddingLeft: "36px" }}
-                      placeholder="e.g. Maa Tara Digital Seva Kendra"
+                      placeholder="Enter digital seva kendra or shop name"
                       value={kendraName}
                       onChange={(e) => setKendraName(e.target.value)}
                       required
@@ -351,7 +351,7 @@ export const LoginPage: React.FC = () => {
                   type="email"
                   className="form-input"
                   style={{ paddingLeft: "36px" }}
-                  placeholder="operator@digitalseva.com"
+                  placeholder="Enter your email address"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required

@@ -1,16 +1,19 @@
 import React, { createContext, useContext, useEffect, useState, useMemo } from "react";
-import { TaskItem, Customer, ServiceMasterItem, ServiceCategory } from "../types";
+import { TaskItem, Customer, ServiceMasterItem, ServiceCategory, DuePaymentRecord } from "../types";
 import { useAuth } from "./AuthContext";
 import {
   subscribeToTasks,
   subscribeToCustomers,
   subscribeToServices,
+  subscribeToDuePayments,
   saveTaskItem,
   deleteTaskItem,
   saveCustomerItem,
   deleteCustomerItem,
   saveServiceMasterItem,
   deleteServiceMasterItem,
+  saveDuePaymentRecord,
+  deleteDuePaymentRecord,
   settleCustomerDue,
 } from "../firebase/db";
 
@@ -18,6 +21,7 @@ interface DataContextType {
   tasks: TaskItem[];
   customers: Customer[];
   services: ServiceMasterItem[];
+  duePayments: DuePaymentRecord[];
   loading: boolean;
   activeFilterCategory: ServiceCategory | "all";
   setActiveFilterCategory: (cat: ServiceCategory | "all") => void;
@@ -35,7 +39,18 @@ interface DataContextType {
   addService: (srv: Omit<ServiceMasterItem, "id" | "userId"> & { id?: string }) => Promise<ServiceMasterItem>;
   updateService: (srv: ServiceMasterItem) => Promise<ServiceMasterItem>;
   deleteService: (srvId: string) => Promise<void>;
-  settleDue: (customerName: string, amount: number, mode: 'cash' | 'upi' | 'bank_transfer', note?: string) => Promise<void>;
+  recordDuePayment: (record: Omit<DuePaymentRecord, "id" | "userId" | "createdAt"> & { id?: string }) => Promise<DuePaymentRecord>;
+  deleteDuePayment: (paymentId: string) => Promise<void>;
+  settleDue: (
+    customerName: string,
+    amount: number,
+    mode: 'cash' | 'upi' | 'bank_transfer',
+    note?: string,
+    paidDate?: string,
+    paidTime?: string,
+    taskId?: string,
+    taskTitle?: string
+  ) => Promise<void>;
   // Derived
   todayStats: {
     revenue: number;
@@ -71,6 +86,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [services, setServices] = useState<ServiceMasterItem[]>([]);
+  const [duePayments, setDuePayments] = useState<DuePaymentRecord[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   // Filters
@@ -103,10 +119,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setServices(srvs);
     });
 
+    // Subscribe to due payments
+    const unsubDuePay = subscribeToDuePayments(activeUid, (records) => {
+      setDuePayments(records);
+    });
+
     return () => {
       unsubTasks();
       unsubCust();
       unsubSrv();
+      unsubDuePay();
     };
   }, [activeUid]);
 
@@ -174,13 +196,208 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setServices((prev) => prev.filter((s) => s.id !== srvId));
   };
 
+  const recordDuePayment = async (
+    recordData: Omit<DuePaymentRecord, "id" | "userId" | "createdAt"> & { id?: string }
+  ) => {
+    const saved = await saveDuePaymentRecord(activeUid, recordData);
+    setDuePayments((prev) => [saved, ...prev.filter((p) => p.id !== saved.id)]);
+    return saved;
+  };
+
+  const deleteDuePayment = async (paymentId: string) => {
+    const record = duePayments.find((p) => p.id === paymentId);
+
+    if (record) {
+      const refundAmount = Number(record.amount) || 0;
+
+      // 1. Find the task that was settled
+      let targetTask: TaskItem | undefined;
+      if (record.taskId) {
+        targetTask = tasks.find((t) => t.id === record.taskId);
+      }
+
+      // If not found by taskId, search customer's tasks by title or name
+      if (!targetTask && record.customerName) {
+        const custTasks = tasks.filter(
+          (t) => t.customerName.toLowerCase().trim() === record.customerName.toLowerCase().trim()
+        );
+        targetTask = custTasks.find((t) => t.title === record.taskTitle) || custTasks[0];
+      }
+
+      if (targetTask) {
+        // Re-add the due amount and reduce amountPaid
+        const currentPaid = Number(targetTask.amountPaid) || 0;
+        const currentCharged = Number(targetTask.amountCharged) || 0;
+        const revertedPaid = Math.max(0, currentPaid - refundAmount);
+        const revertedDue = Math.max(0, currentCharged - revertedPaid);
+        const revertedStatus = revertedDue > 0 && targetTask.status === "completed" ? "pending" : targetTask.status;
+
+        const updatedTask: TaskItem = {
+          ...targetTask,
+          amountPaid: revertedPaid,
+          dueAmount: revertedDue,
+          status: revertedStatus,
+          updatedAt: Date.now(),
+        };
+
+        // Persist task to localStorage & Firestore
+        await saveTaskItem(activeUid, updatedTask);
+
+        // Update React tasks state immediately
+        setTasks((prev) => prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
+      } else if (record.customerName) {
+        // Reverse across customer's tasks where amountPaid > 0
+        const custTasks = tasks.filter(
+          (t) => t.customerName.toLowerCase().trim() === record.customerName.toLowerCase().trim()
+        );
+        let rem = refundAmount;
+        const updatedBatch: TaskItem[] = [];
+        const sorted = [...custTasks].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+
+        for (const t of sorted) {
+          if (rem <= 0) break;
+          const paid = Number(t.amountPaid) || 0;
+          if (paid <= 0) continue;
+          const chunk = Math.min(rem, paid);
+          const newPaid = paid - chunk;
+          const newDue = Math.max(0, (Number(t.amountCharged) || 0) - newPaid);
+          const newStatus = newDue > 0 && t.status === "completed" ? "pending" : t.status;
+          const updatedT: TaskItem = {
+            ...t,
+            amountPaid: newPaid,
+            dueAmount: newDue,
+            status: newStatus,
+            updatedAt: Date.now(),
+          };
+          updatedBatch.push(updatedT);
+          rem -= chunk;
+          await saveTaskItem(activeUid, updatedT);
+        }
+
+        if (updatedBatch.length > 0) {
+          setTasks((prev) =>
+            prev.map((t) => {
+              const found = updatedBatch.find((u) => u.id === t.id);
+              return found || t;
+            })
+          );
+        }
+      }
+    }
+
+    // 2. Delete payment record from storage & Firestore
+    await deleteDuePaymentRecord(activeUid, paymentId);
+
+    // 3. Update React duePayments state immediately
+    setDuePayments((prev) => prev.filter((p) => p.id !== paymentId));
+  };
+
   const settleDue = async (
     customerName: string,
     amount: number,
     mode: 'cash' | 'upi' | 'bank_transfer',
-    note?: string
+    note?: string,
+    paidDate?: string,
+    paidTime?: string,
+    taskId?: string,
+    taskTitle?: string
   ) => {
-    await settleCustomerDue(activeUid, customerName, amount, mode, note);
+    const payVal = Number(amount) || 0;
+    if (payVal <= 0) return;
+
+    let linkedTaskId = taskId;
+    let linkedTaskTitle = taskTitle;
+
+    // 1. If a specific task ID is provided, update that task
+    if (taskId) {
+      const targetTask = tasks.find((t) => t.id === taskId);
+      if (targetTask) {
+        linkedTaskTitle = targetTask.title;
+        const currentPaid = Number(targetTask.amountPaid) || 0;
+        const currentCharged = Number(targetTask.amountCharged) || 0;
+        const newPaid = currentPaid + payVal;
+        const newDue = Math.max(0, currentCharged - newPaid);
+        const newStatus = newDue === 0 ? "completed" : targetTask.status;
+
+        const updatedTask: TaskItem = {
+          ...targetTask,
+          amountPaid: newPaid,
+          dueAmount: newDue,
+          status: newStatus,
+          updatedAt: Date.now(),
+        };
+
+        await saveTaskItem(activeUid, updatedTask);
+        setTasks((prev) => prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
+      }
+    } else {
+      // 2. If no specific taskId was provided, distribute payment across customer's tasks with dues
+      const custTasks = tasks.filter(
+        (t) => t.customerName.toLowerCase().trim() === customerName.toLowerCase().trim()
+      );
+      // Oldest unpaid tasks first
+      const tasksWithDue = custTasks
+        .filter((t) => Number(t.dueAmount) > 0)
+        .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+
+      let remaining = payVal;
+      const updatedBatch: TaskItem[] = [];
+
+      for (const t of tasksWithDue) {
+        if (remaining <= 0) break;
+        const tDue = Number(t.dueAmount) || 0;
+        const chunk = Math.min(remaining, tDue);
+        const currentPaid = Number(t.amountPaid) || 0;
+        const currentCharged = Number(t.amountCharged) || 0;
+        const newPaid = currentPaid + chunk;
+        const newDue = Math.max(0, currentCharged - newPaid);
+        const newStatus = newDue === 0 ? "completed" : t.status;
+
+        const updatedT: TaskItem = {
+          ...t,
+          amountPaid: newPaid,
+          dueAmount: newDue,
+          status: newStatus,
+          updatedAt: Date.now(),
+        };
+
+        updatedBatch.push(updatedT);
+        if (!linkedTaskId) {
+          linkedTaskId = t.id;
+          linkedTaskTitle = t.title;
+        }
+        remaining -= chunk;
+        await saveTaskItem(activeUid, updatedT);
+      }
+
+      if (updatedBatch.length > 0) {
+        setTasks((prev) =>
+          prev.map((t) => {
+            const found = updatedBatch.find((u) => u.id === t.id);
+            return found || t;
+          })
+        );
+      }
+    }
+
+    // 3. Save Due Payment Record
+    const now = new Date();
+    const dateStr = paidDate || now.toISOString().split("T")[0];
+    const timeStr = paidTime || now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false });
+
+    const savedRecord = await saveDuePaymentRecord(activeUid, {
+      taskId: linkedTaskId,
+      taskTitle: linkedTaskTitle || `Balance Settlement`,
+      customerName,
+      amount: payVal,
+      paidDate: dateStr,
+      paidTime: timeStr,
+      paymentMode: mode,
+      notes: note || `Payment collected for ${customerName}`,
+    });
+
+    // 4. Update React duePayments state immediately
+    setDuePayments((prev) => [savedRecord, ...prev.filter((p) => p.id !== savedRecord.id)]);
   };
 
   // Helper: tasks for a specific date
@@ -266,6 +483,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         tasks,
         customers,
         services,
+        duePayments,
         loading,
         activeFilterCategory,
         setActiveFilterCategory,
@@ -282,6 +500,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addService,
         updateService,
         deleteService,
+        recordDuePayment,
+        deleteDuePayment,
         settleDue,
         todayStats,
         overallStats,

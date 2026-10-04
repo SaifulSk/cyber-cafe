@@ -11,6 +11,7 @@ import { TasksView } from "./components/tasks/TasksView";
 import { CalendarView } from "./components/calendar/CalendarView";
 import { DayView } from "./components/dayview/DayView";
 import { CustomerView } from "./components/customers/CustomerView";
+import { DuePaymentsView } from "./components/dues/DuePaymentsView";
 import { MasterMenu } from "./components/masters/MasterMenu";
 
 import { TaskModal } from "./components/tasks/TaskModal";
@@ -179,6 +180,8 @@ const MainAppContent: React.FC = () => {
           )}
 
           {currentView === "customers" && <CustomerView />}
+
+          {currentView === "due_history" && <DuePaymentsView />}
 
           {currentView === "masters" && <MasterMenu />}
         </main>

@@ -14,19 +14,31 @@ export const SettleModal: React.FC<SettleModalProps> = ({
   onClose,
   task,
 }) => {
-  const { settleDue, updateTask } = useData();
+  const { settleDue } = useData();
 
   const [amount, setAmount] = useState<number | "">("");
+  const [paidDate, setPaidDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [paidTime, setPaidTime] = useState<string>(new Date().toTimeString().split(" ")[0].substring(0, 5));
   const [mode, setMode] = useState<"cash" | "upi" | "bank_transfer">("cash");
   const [note, setNote] = useState<string>("");
   const [submitting, setSubmitting] = useState<boolean>(false);
 
+  // Background scroll lock
+  useEffect(() => {
+    if (isOpen) {
+      document.body.classList.add("modal-open");
+      return () => document.body.classList.remove("modal-open");
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     if (task) {
       setAmount(task.dueAmount);
+      setPaidDate(new Date().toISOString().split("T")[0]);
+      setPaidTime(new Date().toTimeString().split(" ")[0].substring(0, 5));
       setNote(`Due payment clearance for task: ${task.title}`);
     }
-  }, [task]);
+  }, [task, isOpen]);
 
   if (!isOpen || !task) return null;
 
@@ -37,18 +49,16 @@ export const SettleModal: React.FC<SettleModalProps> = ({
 
     setSubmitting(true);
     try {
-      // 1. Update this specific task's paid & due amounts
-      const newPaid = Number(task.amountPaid) + payVal;
-      const newDue = Math.max(0, Number(task.amountCharged) - newPaid);
-      await updateTask({
-        ...task,
-        amountPaid: newPaid,
-        dueAmount: newDue,
-        status: newDue === 0 ? "completed" : task.status,
-      });
-
-      // 2. Also record in customer ledger
-      await settleDue(task.customerName, payVal, mode, note);
+      await settleDue(
+        task.customerName,
+        payVal,
+        mode,
+        note,
+        paidDate,
+        paidTime,
+        task.id,
+        task.title
+      );
 
       onClose();
     } catch (err: any) {
@@ -137,12 +147,36 @@ export const SettleModal: React.FC<SettleModalProps> = ({
               </div>
             </div>
 
+            {/* Payment Date & Time */}
+            <div className="task-modal-grid-2">
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label">Payment Date</label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={paidDate}
+                  onChange={(e) => setPaidDate(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label">Payment Time</label>
+                <input
+                  type="time"
+                  className="form-input"
+                  value={paidTime}
+                  onChange={(e) => setPaidTime(e.target.value)}
+                />
+              </div>
+            </div>
+
             <div className="form-group" style={{ margin: 0 }}>
               <label className="form-label">Payment Mode</label>
               <select className="form-select" value={mode} onChange={(e) => setMode(e.target.value as any)}>
-                <option value="cash">Cash Counter</option>
-                <option value="upi">UPI / Scanner QR</option>
-                <option value="bank_transfer">Direct Bank Transfer</option>
+                <option value="cash">Cash</option>
+                <option value="upi">UPI / QR</option>
+                <option value="bank_transfer">Card / Bank Transfer</option>
               </select>
             </div>
 
@@ -151,6 +185,7 @@ export const SettleModal: React.FC<SettleModalProps> = ({
               <input
                 type="text"
                 className="form-input"
+                placeholder="Enter note or payment reference"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
               />

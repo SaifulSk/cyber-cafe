@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, User, Phone, MapPin, CreditCard, FileText } from "lucide-react";
+import { X, User, Phone, MapPin, Mail, MessageSquare } from "lucide-react";
 import { Customer } from "../../types";
 import { useData } from "../../context/DataContext";
 
@@ -7,42 +7,55 @@ interface CustomerModalProps {
   isOpen: boolean;
   onClose: () => void;
   customerToEdit?: Customer | null;
+  onCustomerCreated?: (newCustomer: Customer) => void;
 }
 
 export const CustomerModal: React.FC<CustomerModalProps> = ({
   isOpen,
   onClose,
   customerToEdit,
+  onCustomerCreated,
 }) => {
   const { addCustomer, updateCustomer } = useData();
 
   const [name, setName] = useState<string>("");
   const [phone, setPhone] = useState<string>("");
+  const [whatsapp, setWhatsapp] = useState<string>("");
   const [email, setEmail] = useState<string>("");
-  const [aadhaarLast4, setAadhaarLast4] = useState<string>("");
-  const [villageOrArea, setVillageOrArea] = useState<string>("");
-  const [notes, setNotes] = useState<string>("");
+  const [residence, setResidence] = useState<string>("");
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>("");
+
+  // Lock background scrolling when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.classList.add("modal-open");
+      return () => document.body.classList.remove("modal-open");
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (customerToEdit) {
       setName(customerToEdit.name);
       setPhone(customerToEdit.phone || "");
+      setWhatsapp(customerToEdit.whatsapp || "");
       setEmail(customerToEdit.email || "");
-      setAadhaarLast4(customerToEdit.aadhaarLast4 || "");
-      setVillageOrArea(customerToEdit.villageOrArea || "");
-      setNotes(customerToEdit.notes || "");
+      setResidence(customerToEdit.residence || customerToEdit.villageOrArea || customerToEdit.address || "");
     } else {
       setName("");
       setPhone("");
+      setWhatsapp("");
       setEmail("");
-      setAadhaarLast4("");
-      setVillageOrArea("");
-      setNotes("");
+      setResidence("");
       setErrorMsg("");
     }
   }, [customerToEdit, isOpen]);
+
+  const handleCopyPhoneToWhatsapp = () => {
+    if (phone.trim()) {
+      setWhatsapp(phone.trim());
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,18 +70,23 @@ export const CustomerModal: React.FC<CustomerModalProps> = ({
     try {
       const custData = {
         name: name.trim(),
-        phone: phone.trim(),
+        phone: phone.trim() || undefined,
+        whatsapp: whatsapp.trim() || undefined,
         email: email.trim() || undefined,
-        aadhaarLast4: aadhaarLast4.trim() || undefined,
-        villageOrArea: villageOrArea.trim() || undefined,
-        notes: notes.trim() || undefined,
+        residence: residence.trim() || undefined,
       };
 
+      let saved: Customer;
       if (customerToEdit) {
-        await updateCustomer({ ...customerToEdit, ...custData });
+        saved = await updateCustomer({ ...customerToEdit, ...custData });
       } else {
-        await addCustomer(custData);
+        saved = await addCustomer(custData);
       }
+
+      if (onCustomerCreated) {
+        onCustomerCreated(saved);
+      }
+
       onClose();
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to save customer");
@@ -103,7 +121,7 @@ export const CustomerModal: React.FC<CustomerModalProps> = ({
                 {customerToEdit ? "Edit Customer Record" : "Add New Customer Master"}
               </h3>
               <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
-                Add to your permanent Seva Kendra contact & Khata ledger
+                Save contact details to your customer directory
               </p>
             </div>
           </div>
@@ -135,72 +153,80 @@ export const CustomerModal: React.FC<CustomerModalProps> = ({
             )}
 
             <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label">Customer Full Name *</label>
+              <label className="form-label">Customer Name *</label>
               <input
                 type="text"
                 className="form-input"
-                placeholder="e.g. Ramesh Mondal"
+                placeholder="Enter customer full name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
+                autoFocus
               />
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "12px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
               <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Phone / WhatsApp</label>
+                <label className="form-label">Phone Number</label>
                 <input
                   type="tel"
                   className="form-input"
-                  placeholder="10-digit number"
+                  placeholder="Enter phone number"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                 />
               </div>
 
               <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Aadhaar (Last 4 digits)</label>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <label className="form-label" style={{ margin: 0 }}>WhatsApp Number</label>
+                  {phone && (
+                    <button
+                      type="button"
+                      onClick={handleCopyPhoneToWhatsapp}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "var(--accent-primary)",
+                        fontSize: "0.6875rem",
+                        cursor: "pointer",
+                        textDecoration: "underline",
+                        padding: 0,
+                      }}
+                    >
+                      Same as phone
+                    </button>
+                  )}
+                </div>
                 <input
-                  type="text"
-                  maxLength={4}
-                  className="form-input font-mono"
-                  placeholder="e.g. 4821"
-                  value={aadhaarLast4}
-                  onChange={(e) => setAadhaarLast4(e.target.value.replace(/\D/g, ""))}
+                  type="tel"
+                  className="form-input"
+                  placeholder="Enter WhatsApp number"
+                  value={whatsapp}
+                  onChange={(e) => setWhatsapp(e.target.value)}
                 />
               </div>
             </div>
 
             <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label">Village / Ward / Locality</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="e.g. Rampur Village, Ward 4"
-                value={villageOrArea}
-                onChange={(e) => setVillageOrArea(e.target.value)}
-              />
-            </div>
-
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label">Email ID (Optional)</label>
+              <label className="form-label">Email Address</label>
               <input
                 type="email"
                 className="form-input"
-                placeholder="customer@gmail.com"
+                placeholder="Enter email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
 
             <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label">Notes / Relationship Details</label>
+              <label className="form-label">Residence</label>
               <input
                 type="text"
                 className="form-input"
-                placeholder="e.g. Regular recharge customer / Teacher at primary school"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Enter village, area, or residential address"
+                value={residence}
+                onChange={(e) => setResidence(e.target.value)}
               />
             </div>
           </div>

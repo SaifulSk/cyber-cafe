@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { X, Building, User, Phone, MapPin, Award, Check } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
@@ -16,6 +16,15 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
   const [cscId, setCscId] = useState(userProfile?.cscId || "");
   const [address, setAddress] = useState(userProfile?.address || "");
   const [savedNotice, setSavedNotice] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.classList.add("modal-open");
+      return () => {
+        document.body.classList.remove("modal-open");
+      };
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -67,7 +76,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
               <input
                 type="text"
                 className="form-input"
-                placeholder="e.g. New Life Digital Seva Kendra"
+                placeholder="Enter digital seva kendra or shop name"
                 value={kendraName}
                 onChange={(e) => setKendraName(e.target.value)}
                 required
@@ -80,6 +89,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
                 <input
                   type="text"
                   className="form-input"
+                  placeholder="Enter operator name"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                 />
@@ -90,7 +100,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
                 <input
                   type="text"
                   className="form-input font-mono"
-                  placeholder="e.g. CSC-WB-10928"
+                  placeholder="Enter CSC / VLE ID"
                   value={cscId}
                   onChange={(e) => setCscId(e.target.value)}
                 />
@@ -102,7 +112,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
               <input
                 type="tel"
                 className="form-input"
-                placeholder="+91 9876543210"
+                placeholder="Enter 10-digit mobile or helpline number"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
               />
@@ -113,7 +123,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
               <input
                 type="text"
                 className="form-input"
-                placeholder="Shop No. 4, Market Complex, Station Road"
+                placeholder="Enter center address"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
               />

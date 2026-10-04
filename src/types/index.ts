@@ -4,6 +4,26 @@ export type TaskStatus = 'completed' | 'in_progress' | 'pending' | 'delivered' |
 
 export type PaymentMode = 'cash' | 'upi' | 'bank_transfer' | 'credit';
 
+export interface CategoryCustomField {
+  id: string;
+  name: string;
+  required?: boolean;
+}
+
+export interface DuePaymentRecord {
+  id: string;
+  userId?: string;
+  taskId?: string;
+  taskTitle: string;
+  customerName: string;
+  amount: number;
+  paidDate: string; // YYYY-MM-DD
+  paidTime?: string; // HH:mm
+  paymentMode: PaymentMode;
+  notes?: string;
+  createdAt: number;
+}
+
 export interface TaskItem {
   id: string;
   userId: string;
@@ -13,6 +33,7 @@ export interface TaskItem {
   customerId?: string;
   customerName: string;
   customerPhone?: string;
+  customFieldValues?: Record<string, string>;
   date: string; // YYYY-MM-DD
   time?: string; // HH:mm
   amountIncurred: number; // Cost / operator expense
@@ -32,11 +53,13 @@ export interface Customer {
   id: string;
   userId: string;
   name: string;
-  phone: string;
+  phone?: string;
+  whatsapp?: string;
   email?: string;
-  aadhaarLast4?: string;
+  residence?: string;
   address?: string;
   villageOrArea?: string;
+  aadhaarLast4?: string;
   notes?: string;
   totalTransactions?: number;
   totalBilled?: number;
@@ -51,8 +74,9 @@ export interface ServiceMasterItem {
   userId?: string;
   name: string;
   category?: ServiceCategory;
-  defaultIncurredCost: number;
-  defaultFee: number;
+  customFields?: CategoryCustomField[];
+  defaultIncurredCost?: number;
+  defaultFee?: number;
   icon?: string;
   color?: string;
   description?: string;

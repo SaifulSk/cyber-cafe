@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { X, Check, Calculator, Sparkles, User, AlertCircle, ArrowRight } from "lucide-react";
-import { TaskItem, ServiceCategory, PaymentMode, TaskStatus } from "../../types";
+import { X, Check, Calculator, Sparkles, User, AlertCircle, Plus, Phone, MapPin, Mail, MessageSquare } from "lucide-react";
+import { TaskItem, ServiceCategory, PaymentMode, TaskStatus, Customer, CategoryCustomField } from "../../types";
 import { useData } from "../../context/DataContext";
 import { CategoryIcon, getCategoryColor } from "../common/CategoryIcon";
 
@@ -17,16 +17,25 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   taskToEdit,
   defaultDate,
 }) => {
-  const { services, customers, addTask, updateTask } = useData();
+  const { services, customers, addTask, updateTask, addCustomer } = useData();
 
   // Form State
   const [selectedServiceId, setSelectedServiceId] = useState<string>("");
   const [title, setTitle] = useState<string>("");
   const [category, setCategory] = useState<string>("");
-  const [customCategory, setCustomCategory] = useState<string>("");
   const [customerName, setCustomerName] = useState<string>("");
   const [customerPhone, setCustomerPhone] = useState<string>("");
-  const [showCustomerDropdown, setShowCustomerDropdown] = useState<boolean>(false);
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
+
+  // Instant Add Customer mini form
+  const [isInstantAddOpen, setIsInstantAddOpen] = useState<boolean>(false);
+  const [quickCustName, setQuickCustName] = useState<string>("");
+  const [quickCustPhone, setQuickCustPhone] = useState<string>("");
+  const [quickCustWhatsapp, setQuickCustWhatsapp] = useState<string>("");
+  const [quickCustEmail, setQuickCustEmail] = useState<string>("");
+  const [quickCustResidence, setQuickCustResidence] = useState<string>("");
+  const [quickCustSaving, setQuickCustSaving] = useState<boolean>(false);
+  const [quickCustError, setQuickCustError] = useState<string>("");
 
   const [date, setDate] = useState<string>(
     defaultDate || new Date().toISOString().split("T")[0]
@@ -41,10 +50,16 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("cash");
   const [status, setStatus] = useState<TaskStatus>("completed");
-  const [referenceNo, setReferenceNo] = useState<string>("");
-  const [notes, setNotes] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [submitting, setSubmitting] = useState<boolean>(false);
+
+  // Background scroll lock
+  useEffect(() => {
+    if (isOpen) {
+      document.body.classList.add("modal-open");
+      return () => document.body.classList.remove("modal-open");
+    }
+  }, [isOpen]);
 
   // Dynamic calculations
   const numCharged = Number(amountCharged) || 0;
@@ -54,19 +69,18 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const profit = Math.max(0, numCharged - numIncurred);
   const dueAmount = Math.max(0, numCharged - numPaid);
 
+  // Active master category to discover dynamic custom fields
+  const activeMasterCategory = services.find(
+    (s) => s.name.toLowerCase() === category.toLowerCase()
+  );
+
   useEffect(() => {
     if (taskToEdit) {
       setTitle(taskToEdit.title);
-      const isKnown = services.some((s) => s.name.toLowerCase() === (taskToEdit.serviceCategory || "").toLowerCase());
-      if (isKnown || !taskToEdit.serviceCategory) {
-        setCategory(taskToEdit.serviceCategory || (services.length > 0 ? services[0].name : ""));
-        setCustomCategory("");
-      } else {
-        setCategory("other");
-        setCustomCategory(taskToEdit.serviceCategory);
-      }
+      setCategory(taskToEdit.serviceCategory || (services.length > 0 ? services[0].name : ""));
       setCustomerName(taskToEdit.customerName);
       setCustomerPhone(taskToEdit.customerPhone || "");
+      setCustomFieldValues(taskToEdit.customFieldValues || {});
       setDate(taskToEdit.date);
       setTime(taskToEdit.time || "");
       setAmountIncurred(taskToEdit.amountIncurred);
@@ -74,55 +88,40 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       setAmountPaid(taskToEdit.amountPaid);
       setPaymentMode(taskToEdit.paymentMode);
       setStatus(taskToEdit.status);
-      setReferenceNo(taskToEdit.referenceNo || "");
-      setNotes(taskToEdit.notes || "");
+      setIsInstantAddOpen(false);
     } else {
       // Reset form
       if (services.length > 0) {
         const first = services[0];
         setSelectedServiceId(first.id);
         setCategory(first.name);
-        setCustomCategory("");
         setTitle(first.name);
-        setAmountIncurred(first.defaultIncurredCost);
-        setAmountCharged(first.defaultFee);
-        setAmountPaid(first.defaultFee);
       } else {
         setSelectedServiceId("");
         setCategory("");
-        setCustomCategory("");
         setTitle("");
-        setAmountIncurred("");
-        setAmountCharged("");
-        setAmountPaid("");
       }
-      setCustomerName("");
-      setCustomerPhone("");
+      setCustomerName(customers.length > 0 ? customers[0].name : "");
+      setCustomerPhone(customers.length > 0 ? customers[0].phone || "" : "");
+      setCustomFieldValues({});
       setDate(defaultDate || new Date().toISOString().split("T")[0]);
       setTime(new Date().toTimeString().split(" ")[0].substring(0, 5));
+      setAmountIncurred("");
+      setAmountCharged("");
+      setAmountPaid("");
       setPaymentMode("cash");
       setStatus("completed");
-      setReferenceNo("");
-      setNotes("");
       setErrorMsg("");
+      setIsInstantAddOpen(false);
     }
-  }, [taskToEdit, defaultDate, isOpen, services]);
+  }, [taskToEdit, defaultDate, isOpen, services, customers]);
 
-  // When a Master Category is chosen, pre-fill defaults
+  // Category select handler
   const handleCategorySelect = (selectedCat: string) => {
     setCategory(selectedCat);
-    if (selectedCat === "other") {
-      setSelectedServiceId("");
-      return;
-    }
-
     const matched = services.find((s) => s.name === selectedCat);
     if (matched) {
       setSelectedServiceId(matched.id);
-      setAmountIncurred(matched.defaultIncurredCost);
-      setAmountCharged(matched.defaultFee);
-      setAmountPaid(matched.defaultFee);
-      // Auto-set or update title if it was empty or matched a master category
       if (!title.trim() || services.some((s) => s.name === title)) {
         setTitle(matched.name);
       }
@@ -131,36 +130,58 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     }
   };
 
-  // Filter customer suggestions based on input
-  const customerSuggestions = customers.filter(
-    (c) =>
-      customerName.trim() &&
-      c.name.toLowerCase().includes(customerName.toLowerCase().trim())
-  );
-
-  const handleSelectCustomer = (c: (typeof customers)[0]) => {
-    setCustomerName(c.name);
-    if (c.phone) setCustomerPhone(c.phone);
-    setShowCustomerDropdown(false);
-  };
-
   const handleFullPaidClick = () => {
     setAmountPaid(numCharged);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) {
-      setErrorMsg("Please enter a task title or description");
-      return;
-    }
-    if (!customerName.trim()) {
-      setErrorMsg("Please enter customer name");
+  // Instant Add Customer submit
+  const handleSaveInstantCustomer = async () => {
+    if (!quickCustName.trim()) {
+      setQuickCustError("Please enter customer name");
       return;
     }
 
-    const resolvedCategory =
-      (category === "other" ? customCategory.trim() : category.trim()) || "General";
+    setQuickCustSaving(true);
+    setQuickCustError("");
+
+    try {
+      const saved = await addCustomer({
+        name: quickCustName.trim(),
+        phone: quickCustPhone.trim() || undefined,
+        whatsapp: quickCustWhatsapp.trim() || undefined,
+        email: quickCustEmail.trim() || undefined,
+        residence: quickCustResidence.trim() || undefined,
+      });
+
+      setCustomerName(saved.name);
+      setCustomerPhone(saved.phone || "");
+      setIsInstantAddOpen(false);
+      setQuickCustName("");
+      setQuickCustPhone("");
+      setQuickCustWhatsapp("");
+      setQuickCustEmail("");
+      setQuickCustResidence("");
+    } catch (err: any) {
+      setQuickCustError(err.message || "Failed to save customer");
+    } finally {
+      setQuickCustSaving(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!category.trim()) {
+      setErrorMsg("Please select a category from your Master Menu");
+      return;
+    }
+    if (!customerName.trim()) {
+      setErrorMsg("Please select or add a customer");
+      return;
+    }
+    if (!title.trim()) {
+      setErrorMsg("Please enter a task title or details");
+      return;
+    }
 
     setSubmitting(true);
     setErrorMsg("");
@@ -168,10 +189,11 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     try {
       const taskData = {
         title: title.trim(),
-        serviceCategory: resolvedCategory,
+        serviceCategory: category.trim(),
         serviceId: selectedServiceId || undefined,
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim() || undefined,
+        customFieldValues: Object.keys(customFieldValues).length > 0 ? customFieldValues : undefined,
         date,
         time,
         amountIncurred: numIncurred,
@@ -181,8 +203,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         dueAmount,
         paymentMode,
         status,
-        referenceNo: referenceNo.trim() || undefined,
-        notes: notes.trim() || undefined,
       };
 
       if (taskToEdit) {
@@ -204,7 +224,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "660px" }}>
-        {/* Header */}
+        {/* Fixed Header */}
         <div className="modal-header">
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <div
@@ -240,7 +260,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           </button>
         </div>
 
-        {/* Body */}
+        {/* Scrollable Form Body */}
         <form onSubmit={handleSubmit}>
           <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
             {errorMsg && (
@@ -262,16 +282,14 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               </div>
             )}
 
-            {/* Category & Title */}
-            <div style={{ display: "grid", gridTemplateColumns: services.length > 0 ? "1fr 1.3fr" : "1fr 1.5fr", gap: "12px" }}>
+            {/* Category & Task Title */}
+            <div className="task-modal-grid-2">
               <div className="form-group" style={{ margin: 0 }}>
                 <label className="form-label" style={{ display: "flex", justifyContent: "space-between" }}>
                   <span>Category *</span>
-                  {services.length > 0 && (
-                    <span style={{ fontSize: "0.75rem", color: "var(--accent-primary)", fontWeight: 500 }}>
-                      Master Menu
-                    </span>
-                  )}
+                  <span style={{ fontSize: "0.75rem", color: "var(--accent-primary)", fontWeight: 500 }}>
+                    Master Menu
+                  </span>
                 </label>
                 {services.length > 0 ? (
                   <select
@@ -280,18 +298,18 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     onChange={(e) => handleCategorySelect(e.target.value)}
                     required
                   >
+                    <option value="">-- Select Category --</option>
                     {services.map((srv) => (
                       <option key={srv.id} value={srv.name}>
-                        {srv.name} {srv.defaultFee > 0 ? `(₹${srv.defaultFee})` : ""}
+                        {srv.name}
                       </option>
                     ))}
-                    <option value="other">+ Other / Custom Category</option>
                   </select>
                 ) : (
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="e.g. Recharge, Electricity Bill, AEPS"
+                    placeholder="Enter category name"
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
                     required
@@ -304,7 +322,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g. Jio 299 Recharge / Electricity Bill WBSEDCL"
+                  placeholder="Enter task title or details"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   required
@@ -312,120 +330,239 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               </div>
             </div>
 
-            {/* Custom Category Input if "Other" is selected */}
-            {category === "other" && services.length > 0 && (
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Custom Category Name *</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Enter custom category name (e.g. Passport, Pan Card, Xerox)..."
-                  value={customCategory}
-                  onChange={(e) => setCustomCategory(e.target.value)}
-                  required
-                />
+            {/* Dynamic Custom Fields Defined on Selected Category (Requirement 10) */}
+            {activeMasterCategory?.customFields && activeMasterCategory.customFields.length > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "10px",
+                  padding: "14px",
+                  background: "rgba(6, 182, 212, 0.05)",
+                  border: "1px solid rgba(6, 182, 212, 0.2)",
+                  borderRadius: "var(--radius-md)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span
+                    style={{
+                      fontSize: "0.75rem",
+                      fontWeight: 700,
+                      color: "var(--accent-primary)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
+                    }}
+                  >
+                    {activeMasterCategory.name} Category Fields
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: activeMasterCategory.customFields.length > 1 ? "1fr 1fr" : "1fr",
+                    gap: "12px",
+                  }}
+                >
+                  {activeMasterCategory.customFields.map((field) => (
+                    <div key={field.id} className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">{field.name}</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder={`Enter ${field.name}`}
+                        value={customFieldValues[field.name] || ""}
+                        onChange={(e) =>
+                          setCustomFieldValues((prev) => ({
+                            ...prev,
+                            [field.name]: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
-            {/* Customer Details with Master Auto-Suggest */}
-            <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "12px" }}>
-              <div className="form-group" style={{ margin: 0, position: "relative" }}>
-                <label className="form-label" style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span>Customer Name * (Master Directory)</span>
-                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Auto-syncs</span>
-                </label>
-                <div style={{ position: "relative" }}>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. Ramesh Mondal"
-                    value={customerName}
-                    onChange={(e) => {
-                      setCustomerName(e.target.value);
-                      setShowCustomerDropdown(true);
-                    }}
-                    onFocus={() => setShowCustomerDropdown(true)}
-                    required
-                  />
-                  {customerName && (
-                    <button
-                      type="button"
-                      onClick={() => setCustomerName("")}
-                      style={{
-                        position: "absolute",
-                        right: "8px",
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        background: "none",
-                        border: "none",
-                        color: "var(--text-muted)",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
+            {/* Customer Dropdown with Instant Add (Requirement 8) */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <div className="form-group" style={{ margin: 0 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                  <label className="form-label" style={{ margin: 0 }}>
+                    Customer * (Master Directory)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsInstantAddOpen((prev) => !prev)}
+                    className="btn btn-sm btn-outline"
+                    style={{ padding: "3px 10px", fontSize: "0.75rem", color: "var(--accent-primary)" }}
+                  >
+                    <Plus size={13} /> {isInstantAddOpen ? "Close Quick Add" : "Instant Add Customer"}
+                  </button>
                 </div>
 
-                {/* Suggestions Dropdown */}
-                {showCustomerDropdown && customerSuggestions.length > 0 && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "100%",
-                      left: 0,
-                      right: 0,
-                      zIndex: 60,
-                      marginTop: "4px",
-                      background: "var(--bg-dropdown)",
-                      border: "1px solid var(--border-active)",
-                      borderRadius: "var(--radius-md)",
-                      maxHeight: "160px",
-                      overflowY: "auto",
-                      boxShadow: "var(--shadow-lg)",
+                {customers.length > 0 ? (
+                  <select
+                    className="form-select"
+                    value={customerName}
+                    onChange={(e) => {
+                      const selected = e.target.value;
+                      setCustomerName(selected);
+                      const found = customers.find((c) => c.name === selected);
+                      if (found && found.phone) {
+                        setCustomerPhone(found.phone);
+                      }
                     }}
+                    required
                   >
-                    {customerSuggestions.map((c) => (
-                      <div
-                        key={c.id}
-                        onClick={() => handleSelectCustomer(c)}
-                        style={{
-                          padding: "8px 12px",
-                          cursor: "pointer",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          borderBottom: "1px solid var(--border-subtle)",
-                          fontSize: "0.8125rem",
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                      >
-                        <div>
-                          <div style={{ fontWeight: 600, color: "var(--text-bright)" }}>{c.name}</div>
-                          <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                            {c.phone || "No phone"} {c.villageOrArea ? `• ${c.villageOrArea}` : ""}
-                          </div>
-                        </div>
-                        {c.totalDue && c.totalDue > 0 ? (
-                          <span className="badge badge-due">Due: ₹{c.totalDue}</span>
-                        ) : null}
-                      </div>
+                    <option value="">-- Select Customer from Master --</option>
+                    {customers.map((c) => (
+                      <option key={c.id} value={c.name}>
+                        {c.name} {c.phone ? `(${c.phone})` : ""} {c.residence ? `• ${c.residence}` : ""}
+                      </option>
                     ))}
+                  </select>
+                ) : (
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Enter customer name"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setIsInstantAddOpen(true)}
+                      className="btn btn-secondary btn-sm"
+                      style={{ flexShrink: 0 }}
+                    >
+                      <Plus size={14} /> Add to Master
+                    </button>
                   </div>
                 )}
               </div>
 
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Phone / WhatsApp</label>
-                <input
-                  type="tel"
-                  className="form-input"
-                  placeholder="10-digit mobile"
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                />
-              </div>
+              {/* Instant Add Customer Inline Panel */}
+              {isInstantAddOpen && (
+                <div
+                  style={{
+                    padding: "14px",
+                    background: "var(--bg-card)",
+                    border: "1px solid var(--border-active)",
+                    borderRadius: "var(--radius-md)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "10px",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--text-bright)" }}>
+                      Quick Add Customer to Master Directory
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsInstantAddOpen(false)}
+                      style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+
+                  {quickCustError && (
+                    <div style={{ color: "#fca5a5", fontSize: "0.75rem" }}>{quickCustError}</div>
+                  )}
+
+                  <div className="task-modal-grid-2">
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: "0.75rem" }}>Name *</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Enter full name"
+                        value={quickCustName}
+                        onChange={(e) => setQuickCustName(e.target.value)}
+                        autoFocus
+                      />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: "0.75rem" }}>Phone Number</label>
+                      <input
+                        type="tel"
+                        className="form-input"
+                        placeholder="Enter phone number"
+                        value={quickCustPhone}
+                        onChange={(e) => setQuickCustPhone(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="task-modal-grid-2">
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <label className="form-label" style={{ fontSize: "0.75rem" }}>WhatsApp</label>
+                        {quickCustPhone && (
+                          <button
+                            type="button"
+                            onClick={() => setQuickCustWhatsapp(quickCustPhone)}
+                            style={{ background: "none", border: "none", color: "var(--accent-primary)", fontSize: "0.6875rem", cursor: "pointer", textDecoration: "underline", padding: 0 }}
+                          >
+                            Same as phone
+                          </button>
+                        )}
+                      </div>
+                      <input
+                        type="tel"
+                        className="form-input"
+                        placeholder="Enter WhatsApp number"
+                        value={quickCustWhatsapp}
+                        onChange={(e) => setQuickCustWhatsapp(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: "0.75rem" }}>Email Address</label>
+                      <input
+                        type="email"
+                        className="form-input"
+                        placeholder="Enter email address"
+                        value={quickCustEmail}
+                        onChange={(e) => setQuickCustEmail(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: "0.75rem" }}>Residence</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Enter village, area, or residential address"
+                      value={quickCustResidence}
+                      onChange={(e) => setQuickCustResidence(e.target.value)}
+                    />
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "4px" }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsInstantAddOpen(false)}
+                      className="btn btn-sm btn-outline"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveInstantCustomer}
+                      disabled={quickCustSaving}
+                      className="btn btn-sm btn-primary"
+                    >
+                      {quickCustSaving ? "Saving..." : "Save & Select Customer"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Financials & Live Profit / Due Card */}
@@ -458,8 +595,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 </button>
               </div>
 
-              {/* 3 Input Columns: Amount Incurred, Amount Charged, Amount Paid */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px" }}>
+              {/* 3 Responsive Financial Columns (Requirement 7) */}
+              <div className="task-modal-financials-grid">
                 <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label" style={{ color: "var(--text-secondary)" }}>
                     Amount Incurred (Cost)
@@ -523,7 +660,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                       onChange={(e) => {
                         const val = e.target.value === "" ? "" : Number(e.target.value);
                         setAmountCharged(val);
-                        // If paid wasn't modified yet or was 0, default paid to charged
                         if (amountPaid === "" || amountPaid === 0) {
                           setAmountPaid(val);
                         }
@@ -576,52 +712,50 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               {/* Dynamic KPI Banner: Profit & Due */}
               <div
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "12px",
-                  marginTop: "14px",
+                  marginTop: "12px",
                   padding: "10px 14px",
-                  background: "var(--bg-card)",
+                  background: "rgba(0, 0, 0, 0.25)",
                   borderRadius: "var(--radius-md)",
                   border: "1px solid var(--border-subtle)",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: "8px",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", fontWeight: 500 }}>
-                    Calculated Profit:
-                  </span>
-                  <span
+                <div>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Net Profit: </span>
+                  <strong
                     className="font-mono"
                     style={{
-                      fontSize: "1.125rem",
-                      fontWeight: 700,
+                      fontSize: "1rem",
                       color: profit >= 0 ? "var(--emerald-profit)" : "var(--rose-due)",
                     }}
                   >
-                    +₹{profit.toFixed(2)}
-                  </span>
+                    ₹{profit.toFixed(2)}
+                  </strong>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderLeft: "1px solid var(--border-subtle)", paddingLeft: "12px" }}>
-                  <span style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", fontWeight: 500 }}>
-                    Outstanding Due:
+                <div>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                    Outstanding Due:{" "}
                   </span>
-                  <span
+                  <strong
                     className="font-mono"
                     style={{
-                      fontSize: "1.125rem",
-                      fontWeight: 700,
+                      fontSize: "1rem",
                       color: dueAmount > 0 ? "var(--rose-due)" : "var(--text-muted)",
                     }}
                   >
                     ₹{dueAmount.toFixed(2)}
-                  </span>
+                  </strong>
                 </div>
               </div>
             </div>
 
-            {/* Date, Time, Payment Mode & Status */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
+            {/* Responsive Date & Time (Requirement 7) */}
+            <div className="task-modal-grid-2">
               <div className="form-group" style={{ margin: 0 }}>
                 <label className="form-label">Date</label>
                 <input
@@ -642,7 +776,10 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   onChange={(e) => setTime(e.target.value)}
                 />
               </div>
+            </div>
 
+            {/* Responsive Payment Mode & Task Status (Requirement 7 & 13) */}
+            <div className="task-modal-grid-2">
               <div className="form-group" style={{ margin: 0 }}>
                 <label className="form-label">Payment Mode</label>
                 <select
@@ -651,8 +788,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
                 >
                   <option value="cash">Cash</option>
-                  <option value="upi">UPI / QR Code</option>
-                  <option value="bank_transfer">Bank Transfer</option>
+                  <option value="upi">UPI / QR</option>
+                  <option value="bank_transfer">Card / Bank Transfer</option>
                   <option value="credit">Khata / Credit</option>
                 </select>
               </div>
@@ -672,34 +809,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 </select>
               </div>
             </div>
-
-            {/* Reference No & Notes */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Reference / Ack / Token No</label>
-                <input
-                  type="text"
-                  className="form-input font-mono"
-                  placeholder="e.g. UTR-92810 / WBSEDCL-8201"
-                  value={referenceNo}
-                  onChange={(e) => setReferenceNo(e.target.value)}
-                />
-              </div>
-
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Remarks / Consumer Details</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g. WBSEDCL Consumer 104928"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
-              </div>
-            </div>
           </div>
 
-          {/* Footer */}
+          {/* Fixed Footer */}
           <div className="modal-footer">
             <button type="button" onClick={onClose} className="btn btn-outline" disabled={submitting}>
               Cancel
