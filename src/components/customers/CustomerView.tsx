@@ -4,6 +4,7 @@ import { Customer } from "../../types";
 import { useData } from "../../context/DataContext";
 import { CustomerLedgerModal } from "./CustomerLedgerModal";
 import { CustomerModal } from "./CustomerModal";
+import { ConfirmDeleteModal } from "../common/ConfirmDeleteModal";
 
 export const CustomerView: React.FC = () => {
   const { customers, deleteCustomer, getCustomerHistory } = useData();
@@ -15,6 +16,7 @@ export const CustomerView: React.FC = () => {
   const [selectedCustomerForLedger, setSelectedCustomerForLedger] = useState<Customer | null>(null);
   const [customerToEdit, setCustomerToEdit] = useState<Customer | null>(null);
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState<boolean>(false);
+  const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
 
   // Aggregate customer metrics with their real-time tasks
   const customerListWithMetrics = useMemo(() => {
@@ -222,11 +224,7 @@ export const CustomerView: React.FC = () => {
                       <Edit2 size={12} />
                     </button>
                     <button
-                      onClick={() => {
-                        if (window.confirm(`Delete customer ${cust.name}?`)) {
-                          deleteCustomer(cust.id);
-                        }
-                      }}
+                      onClick={() => setCustomerToDelete(cust)}
                       className="btn btn-sm btn-danger-outline"
                       style={{ padding: "4px 6px" }}
                       title="Delete Customer"
@@ -328,6 +326,25 @@ export const CustomerView: React.FC = () => {
         isOpen={isCustomerModalOpen}
         onClose={() => setIsCustomerModalOpen(false)}
         customerToEdit={customerToEdit}
+      />
+
+      {/* Delete Confirmation Popup */}
+      <ConfirmDeleteModal
+        isOpen={!!customerToDelete}
+        title="Delete Customer Master"
+        message={`Are you sure you want to delete customer "${customerToDelete?.name}"?`}
+        details={
+          customerToDelete
+            ? `Phone: ${customerToDelete.phone || "None"} • Residence: ${customerToDelete.residence || customerToDelete.villageOrArea || "None"}`
+            : undefined
+        }
+        confirmText="Delete Customer"
+        onConfirm={async () => {
+          if (customerToDelete) {
+            await deleteCustomer(customerToDelete.id);
+          }
+        }}
+        onClose={() => setCustomerToDelete(null)}
       />
     </div>
   );

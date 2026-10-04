@@ -15,6 +15,7 @@ import {
 import { useData } from "../../context/DataContext";
 import { DuePaymentRecord, PaymentMode } from "../../types";
 import { StatCard } from "../common/StatCard";
+import { ConfirmDeleteModal } from "../common/ConfirmDeleteModal";
 
 interface EditDuePaymentModalProps {
   record: DuePaymentRecord;
@@ -206,6 +207,7 @@ export const DuePaymentsView: React.FC = () => {
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [customDate, setCustomDate] = useState<string>("");
   const [editingRecord, setEditingRecord] = useState<DuePaymentRecord | null>(null);
+  const [recordToDelete, setRecordToDelete] = useState<DuePaymentRecord | null>(null);
 
   const todayStr = new Date().toISOString().split("T")[0];
   const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split("T")[0];
@@ -489,11 +491,7 @@ export const DuePaymentsView: React.FC = () => {
                           <Edit2 size={12} />
                         </button>
                         <button
-                          onClick={() => {
-                            if (window.confirm(`Delete settlement record of ₹${r.amount} for ${r.customerName} and re-add due?`)) {
-                              deleteDuePayment(r.id);
-                            }
-                          }}
+                          onClick={() => setRecordToDelete(r)}
                           className="btn btn-sm btn-danger-outline"
                           style={{ padding: "4px 8px" }}
                           title="Delete Settlement & Re-add Due"
@@ -520,6 +518,25 @@ export const DuePaymentsView: React.FC = () => {
           }}
         />
       )}
+
+      {/* Delete Confirmation Popup */}
+      <ConfirmDeleteModal
+        isOpen={!!recordToDelete}
+        title="Delete Due Settlement Record"
+        message={`Are you sure you want to delete settlement of ₹${recordToDelete?.amount.toFixed(2)} for ${recordToDelete?.customerName}?`}
+        details={
+          recordToDelete
+            ? `Paid Date: ${recordToDelete.paidDate} • Mode: ${recordToDelete.paymentMode.toUpperCase()} • Task: ${recordToDelete.taskTitle}`
+            : undefined
+        }
+        confirmText="Delete & Restore Due"
+        onConfirm={async () => {
+          if (recordToDelete) {
+            await deleteDuePayment(recordToDelete.id);
+          }
+        }}
+        onClose={() => setRecordToDelete(null)}
+      />
     </div>
   );
 };

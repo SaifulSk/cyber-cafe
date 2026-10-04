@@ -53,12 +53,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) =
               width: "40px",
               height: "40px",
               borderRadius: "var(--radius-md)",
-              background: "linear-gradient(135deg, var(--accent-primary) 0%, #0284c7 100%)",
+              background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary-hover) 100%)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               color: "#ffffff",
-              boxShadow: "0 4px 14px rgba(6, 182, 212, 0.4)",
+              boxShadow: "0 4px 14px var(--accent-glow)",
             }}
           >
             <ShieldCheck size={22} />
@@ -91,7 +91,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) =
                   padding: "10px 14px",
                   borderRadius: "var(--radius-md)",
                   border: "none",
-                  background: isActive ? "linear-gradient(90deg, rgba(6, 182, 212, 0.15) 0%, rgba(6, 182, 212, 0.05) 100%)" : "transparent",
+                  background: isActive ? "var(--accent-glow)" : "transparent",
                   color: isActive ? "var(--accent-primary)" : "var(--text-secondary)",
                   fontWeight: isActive ? 700 : 500,
                   fontSize: "0.875rem",

@@ -31,12 +31,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             width: "36px",
             height: "36px",
             borderRadius: "var(--radius-md)",
-            background: "linear-gradient(135deg, var(--accent-primary) 0%, #0284c7 100%)",
+            background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary-hover) 100%)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             color: "#ffffff",
-            boxShadow: "0 2px 8px rgba(2, 132, 199, 0.3)",
+            boxShadow: "0 2px 8px var(--accent-glow)",
             flexShrink: 0,
           }}
         >
@@ -100,7 +100,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               width: "22px",
               height: "22px",
               borderRadius: "50%",
-              background: "rgba(2, 132, 199, 0.15)",
+              background: "var(--accent-glow)",
               color: "var(--accent-primary)",
               display: "flex",
               alignItems: "center",

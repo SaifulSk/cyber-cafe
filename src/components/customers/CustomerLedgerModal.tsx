@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { X, DollarSign, MessageCircle, Calendar, Phone, CheckCircle, AlertTriangle, History, Clock, Trash2 } from "lucide-react";
-import { Customer, TaskItem } from "../../types";
+import { Customer, TaskItem, DuePaymentRecord } from "../../types";
 import { useData } from "../../context/DataContext";
 import { CategoryIcon, getCategoryColor } from "../common/CategoryIcon";
+import { ConfirmDeleteModal } from "../common/ConfirmDeleteModal";
 
 interface CustomerLedgerModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
   const [settleAmount, setSettleAmount] = useState<number | "">("");
   const [settleMode, setSettleMode] = useState<"cash" | "upi" | "bank_transfer">("cash");
   const [paidDate, setPaidDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [paymentToDelete, setPaymentToDelete] = useState<DuePaymentRecord | null>(null);
   const [paidTime, setPaidTime] = useState<string>(
     new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false })
   );
@@ -449,11 +451,7 @@ export const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                           </div>
                           <button
                             type="button"
-                            onClick={async () => {
-                              if (window.confirm(`Delete settlement of ₹${payment.amount} and re-add due to customer?`)) {
-                                await deleteDuePayment(payment.id);
-                              }
-                            }}
+                            onClick={() => setPaymentToDelete(payment)}
                             className="btn btn-sm btn-danger-outline"
                             style={{ padding: "4px 8px" }}
                             title="Delete Settlement & Re-add Due"
@@ -477,6 +475,21 @@ export const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Delete Confirmation Popup */}
+      <ConfirmDeleteModal
+        isOpen={!!paymentToDelete}
+        title="Delete Due Settlement Record"
+        message={`Are you sure you want to delete settlement of ₹${paymentToDelete?.amount.toFixed(2)} and re-add the due to ${customer.name}?`}
+        details={paymentToDelete ? `Paid Date: ${paymentToDelete.paidDate} • Mode: ${paymentToDelete.paymentMode.toUpperCase()}` : undefined}
+        confirmText="Delete & Restore Due"
+        onConfirm={async () => {
+          if (paymentToDelete) {
+            await deleteDuePayment(paymentToDelete.id);
+          }
+        }}
+        onClose={() => setPaymentToDelete(null)}
+      />
     </div>
   );
 };

@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import { Edit2, Trash2, Printer, CheckCircle, Clock, AlertTriangle, ArrowUpRight, DollarSign } from "lucide-react";
 import { TaskItem } from "../../types";
 import { CategoryIcon, getCategoryColor, formatCategoryLabel } from "../common/CategoryIcon";
+import { ConfirmDeleteModal } from "../common/ConfirmDeleteModal";
 
 interface TaskCardProps {
   task: TaskItem;
@@ -18,6 +19,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   onSettleDue,
   onPrintReceipt,
 }) => {
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const categoryColor = getCategoryColor(task.serviceCategory);
 
   const getStatusBadge = (status: TaskItem["status"]) => {
@@ -224,11 +226,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           </button>
 
           <button
-            onClick={() => {
-              if (window.confirm(`Delete task "${task.title}" for ${task.customerName}?`)) {
-                onDelete(task.id);
-              }
-            }}
+            onClick={() => setShowDeleteModal(true)}
             className="btn btn-sm btn-danger-outline"
             title="Delete Task"
             style={{ padding: "6px 8px" }}
@@ -237,6 +235,16 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           </button>
         </div>
       </div>
+
+      <ConfirmDeleteModal
+        isOpen={showDeleteModal}
+        title="Delete Seva Task"
+        message={`Are you sure you want to delete task "${task.title}" for customer ${task.customerName}?`}
+        details={`Amount Charged: ₹${task.amountCharged} • Paid: ₹${task.amountPaid} • Due: ₹${task.dueAmount}`}
+        confirmText="Delete Task"
+        onConfirm={() => onDelete(task.id)}
+        onClose={() => setShowDeleteModal(false)}
+      />
     </div>
   );
 };

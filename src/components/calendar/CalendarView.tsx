@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus, ArrowRight, DollarSign } from "lucide-react";
+import React, { useState, useMemo, useEffect } from "react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus, ArrowRight, DollarSign, X } from "lucide-react";
 import { useData } from "../../context/DataContext";
 import { TaskItem } from "../../types";
 import { TaskCard } from "../tasks/TaskCard";
@@ -24,6 +24,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const [selectedDayStr, setSelectedDayStr] = useState<string>(
     new Date().toISOString().split("T")[0]
   );
+  const [isDateModalOpen, setIsDateModalOpen] = useState<boolean>(false);
+
+  // Background scroll lock when date modal is open
+  useEffect(() => {
+    if (isDateModalOpen) {
+      document.body.classList.add("modal-open");
+      return () => {
+        document.body.classList.remove("modal-open");
+      };
+    }
+  }, [isDateModalOpen]);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth(); // 0-indexed
@@ -101,9 +112,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
     // Current month days
     for (let d = 1; d <= daysInMonth; d++) {
-      const mStr = String(month + 1).padStart(2, "0");
-      const dStr = String(d).padStart(2, "0");
-      const dateStr = `${year}-${mStr}-${dStr}`;
+      const thisDate = new Date(year, month, d);
+      const dateStr = thisDate.toISOString().split("T")[0];
       const dayTasks = tasksByDate[dateStr] || [];
       const profit = dayTasks.reduce((sum, t) => sum + (Number(t.profit) || 0), 0);
       const due = dayTasks.reduce((sum, t) => sum + (Number(t.dueAmount) || 0), 0);
@@ -120,8 +130,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       });
     }
 
-    // Next month padding to fill out 35 or 42 cells (7 cols)
-    const remaining = (7 - (cells.length % 7)) % 7;
+    // Next month padding days to fill 35 or 42 grid cells
+    const totalCells = cells.length > 35 ? 42 : 35;
+    const remaining = totalCells - cells.length;
     for (let d = 1; d <= remaining; d++) {
       const nextDate = new Date(year, month + 1, d);
       const dateStr = nextDate.toISOString().split("T")[0];
@@ -144,78 +155,69 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     return cells;
   }, [year, month, tasksByDate, selectedDayStr]);
 
-  // Tasks for the selected day
+  // Selected Day's tasks and metrics
   const selectedDayTasks = tasksByDate[selectedDayStr] || [];
-  const selectedDayProfit = selectedDayTasks.reduce((s, t) => s + (Number(t.profit) || 0), 0);
-  const selectedDayDue = selectedDayTasks.reduce((s, t) => s + (Number(t.dueAmount) || 0), 0);
-  const selectedDayBilled = selectedDayTasks.reduce((s, t) => s + (Number(t.amountCharged) || 0), 0);
+  const selectedDayBilled = selectedDayTasks.reduce((sum, t) => sum + (Number(t.amountCharged) || 0), 0);
+  const selectedDayProfit = selectedDayTasks.reduce((sum, t) => sum + (Number(t.profit) || 0), 0);
+  const selectedDayDue = selectedDayTasks.reduce((sum, t) => sum + (Number(t.dueAmount) || 0), 0);
 
   // Month totals
-  const monthPrefix = `${year}-${String(month + 1).padStart(2, "0")}`;
-  const monthTasks = tasks.filter((t) => t.date.startsWith(monthPrefix));
-  const monthProfit = monthTasks.reduce((s, t) => s + (Number(t.profit) || 0), 0);
-  const monthBilled = monthTasks.reduce((s, t) => s + (Number(t.amountCharged) || 0), 0);
-  const monthDues = monthTasks.reduce((s, t) => s + (Number(t.dueAmount) || 0), 0);
+  const monthTasks = useMemo(() => {
+    const prefix = `${year}-${String(month + 1).padStart(2, "0")}`;
+    return tasks.filter((t) => t.date.startsWith(prefix));
+  }, [tasks, year, month]);
+
+  const monthBilled = monthTasks.reduce((sum, t) => sum + (Number(t.amountCharged) || 0), 0);
+  const monthProfit = monthTasks.reduce((sum, t) => sum + (Number(t.profit) || 0), 0);
+  const monthDues = monthTasks.reduce((sum, t) => sum + (Number(t.dueAmount) || 0), 0);
+
+  const handleCellClick = (dateStr: string) => {
+    setSelectedDayStr(dateStr);
+    setIsDateModalOpen(true);
+  };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-      {/* Calendar Header with Controls */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "16px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      {/* Top Calendar Toolbar */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
         <div>
           <h2 style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--text-bright)", letterSpacing: "-0.02em" }}>
-            Calendar Timeline View
+            Monthly Activity Calendar
           </h2>
-          <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>
-            Monthly visual breakdown of tasks, daily profits and credit dues
+          <p style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+            Visual timeline of seva tasks, daily revenue, and pending dues
           </p>
         </div>
 
-        {/* Month Selector Buttons */}
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <button onClick={goToday} className="btn btn-secondary btn-sm">
-            Today
-          </button>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-              background: "var(--bg-card)",
-              borderRadius: "var(--radius-md)",
-              border: "1px solid var(--border-subtle)",
-              padding: "4px",
-            }}
-          >
+        {/* Navigation & Actions */}
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "var(--bg-card)", padding: "4px 8px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)" }}>
             <button
               onClick={prevMonth}
-              className="btn btn-outline btn-sm"
-              style={{ padding: "6px", width: "32px", height: "32px" }}
+              className="btn btn-outline"
+              style={{ padding: "6px", borderRadius: "50%", width: "28px", height: "28px" }}
               title="Previous Month"
             >
-              <ChevronLeft size={16} />
+              <ChevronLeft size={15} />
             </button>
 
-            <span
-              style={{
-                minWidth: "150px",
-                textAlign: "center",
-                fontWeight: 700,
-                fontSize: "0.9375rem",
-                color: "var(--text-bright)",
-              }}
-            >
+            <span style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--text-bright)", minWidth: "140px", textAlign: "center" }}>
               {monthNames[month]} {year}
             </span>
 
             <button
               onClick={nextMonth}
-              className="btn btn-outline btn-sm"
-              style={{ padding: "6px", width: "32px", height: "32px" }}
+              className="btn btn-outline"
+              style={{ padding: "6px", borderRadius: "50%", width: "28px", height: "28px" }}
               title="Next Month"
             >
-              <ChevronRight size={16} />
+              <ChevronRight size={15} />
             </button>
           </div>
+
+          <button onClick={goToday} className="btn btn-secondary btn-sm">
+            Current Day
+          </button>
 
           <button
             onClick={() => onOpenNewTaskForDate(selectedDayStr)}
@@ -271,226 +273,276 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         </div>
       </div>
 
-      {/* Main Calendar & Day Detail Layout */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.8fr 1.2fr", gap: "20px", alignItems: "start" }}>
-        {/* Left: The Interactive Calendar Grid */}
-        <div className="glass-panel" style={{ padding: "18px" }}>
-          <div className="calendar-grid" style={{ marginBottom: "6px" }}>
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-              <div key={day} className="calendar-day-header">
-                {day}
-              </div>
-            ))}
-          </div>
+      {/* Main Full-Width Interactive Calendar Grid */}
+      <div className="glass-panel" style={{ padding: "20px" }}>
+        <div className="calendar-grid" style={{ marginBottom: "8px" }}>
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+            <div key={day} className="calendar-day-header" style={{ padding: "10px 0", fontSize: "0.8125rem" }}>
+              {day}
+            </div>
+          ))}
+        </div>
 
-          <div className="calendar-grid">
-            {calendarDays.map((cell, idx) => {
-              const hasTasks = cell.tasks.length > 0;
-              const isSelected = cell.dateStr === selectedDayStr;
+        <div className="calendar-grid">
+          {calendarDays.map((cell, idx) => {
+            const hasTasks = cell.tasks.length > 0;
+            const isSelected = cell.dateStr === selectedDayStr;
 
-              return (
-                <div
-                  key={idx}
-                  onClick={() => setSelectedDayStr(cell.dateStr)}
-                  className={`calendar-cell ${!cell.isCurrentMonth ? "is-other-month" : ""} ${
-                    cell.isToday ? "is-today" : ""
-                  } ${isSelected ? "is-selected" : ""}`}
-                  style={{ minHeight: "92px", position: "relative" }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            return (
+              <div
+                key={idx}
+                onClick={() => handleCellClick(cell.dateStr)}
+                className={`calendar-cell ${!cell.isCurrentMonth ? "is-other-month" : ""} ${
+                  cell.isToday ? "is-today" : ""
+                } ${isSelected ? "is-selected" : ""}`}
+                style={{
+                  minHeight: "105px",
+                  position: "relative",
+                  cursor: "pointer",
+                  transition: "all 0.18s ease",
+                }}
+                title={`Click to view tasks for ${cell.dateStr}`}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span
+                    style={{
+                      fontSize: "0.8125rem",
+                      fontWeight: cell.isToday || isSelected ? 800 : 600,
+                      color: cell.isToday ? "var(--accent-primary)" : "var(--text-main)",
+                      borderRadius: "50%",
+                      width: "24px",
+                      height: "24px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: cell.isToday ? "rgba(6, 182, 212, 0.2)" : "transparent",
+                    }}
+                  >
+                    {cell.day}
+                  </span>
+
+                  {hasTasks && (
                     <span
                       style={{
-                        fontSize: "0.8125rem",
-                        fontWeight: cell.isToday || isSelected ? 800 : 500,
-                        color: cell.isToday ? "var(--accent-primary)" : "var(--text-main)",
-                        borderRadius: "50%",
-                        width: "22px",
-                        height: "22px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        background: cell.isToday ? "rgba(6, 182, 212, 0.2)" : "transparent",
+                        fontSize: "0.6875rem",
+                        fontWeight: 700,
+                        padding: "1px 6px",
+                        borderRadius: "var(--radius-sm)",
+                        background: "rgba(255,255,255,0.08)",
+                        color: "var(--text-bright)",
                       }}
                     >
-                      {cell.day}
+                      {cell.tasks.length}
                     </span>
+                  )}
+                </div>
 
-                    {hasTasks && (
-                      <span
+                {/* Day Content Badges */}
+                {hasTasks ? (
+                  <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: "3px" }}>
+                    {cell.profit > 0 && (
+                      <div
+                        className="font-mono"
                         style={{
                           fontSize: "0.6875rem",
                           fontWeight: 700,
-                          padding: "1px 5px",
-                          borderRadius: "var(--radius-sm)",
-                          background: "rgba(255,255,255,0.08)",
-                          color: "var(--text-bright)",
+                          color: "var(--emerald-profit)",
+                          background: "rgba(16, 185, 129, 0.1)",
+                          borderRadius: "3px",
+                          padding: "2px 5px",
                         }}
                       >
-                        {cell.tasks.length}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Day Content Badges */}
-                  {hasTasks ? (
-                    <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: "2px" }}>
-                      {cell.profit > 0 && (
-                        <div
-                          className="font-mono"
-                          style={{
-                            fontSize: "0.6875rem",
-                            fontWeight: 700,
-                            color: "var(--emerald-profit)",
-                            background: "rgba(16, 185, 129, 0.1)",
-                            borderRadius: "3px",
-                            padding: "1px 4px",
-                          }}
-                        >
-                          +₹{cell.profit.toFixed(0)}
-                        </div>
-                      )}
-
-                      {cell.due > 0 && (
-                        <div
-                          className="font-mono"
-                          style={{
-                            fontSize: "0.625rem",
-                            fontWeight: 700,
-                            color: "var(--rose-due)",
-                            background: "rgba(244, 63, 94, 0.1)",
-                            borderRadius: "3px",
-                            padding: "1px 4px",
-                          }}
-                        >
-                          Due ₹{cell.due.toFixed(0)}
-                        </div>
-                      )}
-
-                      {/* Small category color dots */}
-                      <div style={{ display: "flex", gap: "3px", marginTop: "2px" }}>
-                        {Array.from(new Set(cell.tasks.map((t) => t.serviceCategory)))
-                          .slice(0, 4)
-                          .map((cat, i) => (
-                            <span
-                              key={i}
-                              style={{
-                                width: "6px",
-                                height: "6px",
-                                borderRadius: "50%",
-                                background: getCategoryColor(cat),
-                              }}
-                            />
-                          ))}
+                        +₹{cell.profit.toFixed(0)}
                       </div>
+                    )}
+
+                    {cell.due > 0 && (
+                      <div
+                        className="font-mono"
+                        style={{
+                          fontSize: "0.625rem",
+                          fontWeight: 700,
+                          color: "var(--rose-due)",
+                          background: "rgba(244, 63, 94, 0.1)",
+                          borderRadius: "3px",
+                          padding: "2px 5px",
+                        }}
+                      >
+                        Due ₹{cell.due.toFixed(0)}
+                      </div>
+                    )}
+
+                    {/* Category dots */}
+                    <div style={{ display: "flex", gap: "4px", marginTop: "2px", flexWrap: "wrap" }}>
+                      {Array.from(new Set(cell.tasks.map((t) => t.serviceCategory)))
+                        .slice(0, 5)
+                        .map((cat, i) => (
+                          <span
+                            key={i}
+                            style={{
+                              width: "7px",
+                              height: "7px",
+                              borderRadius: "50%",
+                              background: getCategoryColor(cat),
+                            }}
+                          />
+                        ))}
                     </div>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Right: Selected Day Drawer / Task List */}
-        <div
-          className="glass-panel"
-          style={{
-            padding: "20px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "16px",
-            position: "sticky",
-            top: "88px",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "12px" }}>
-            <div>
-              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: 700 }}>
-                Selected Date
-              </span>
-              <h3 style={{ fontSize: "1.125rem", fontWeight: 800, color: "var(--text-bright)", marginTop: "2px" }}>
-                {selectedDayStr}
-              </h3>
-            </div>
-
-            <div style={{ display: "flex", gap: "6px" }}>
-              <button
-                onClick={() => onSwitchToDayView(selectedDayStr)}
-                className="btn btn-sm btn-secondary"
-                title="Open detailed Day View with cash drawer"
-              >
-                Day View <ArrowRight size={13} />
-              </button>
-              <button
-                onClick={() => onOpenNewTaskForDate(selectedDayStr)}
-                className="btn btn-sm btn-primary"
-                title="Add task on this date"
-              >
-                <Plus size={14} />
-              </button>
-            </div>
-          </div>
-
-          {/* Day Metric Summary */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: "8px",
-              background: "var(--bg-card-hover)",
-              padding: "10px",
-              borderRadius: "var(--radius-md)",
-              border: "1px solid var(--border-subtle)",
-              textAlign: "center",
-            }}
-          >
-            <div>
-              <div style={{ fontSize: "0.6875rem", color: "var(--text-muted)" }}>Billed</div>
-              <div className="font-mono" style={{ fontSize: "0.9375rem", fontWeight: 700, color: "var(--text-bright)" }}>
-                ₹{selectedDayBilled.toFixed(0)}
+                  </div>
+                ) : null}
               </div>
-            </div>
-            <div>
-              <div style={{ fontSize: "0.6875rem", color: "var(--text-muted)" }}>Profit</div>
-              <div className="font-mono" style={{ fontSize: "0.9375rem", fontWeight: 700, color: "var(--emerald-profit)" }}>
-                +₹{selectedDayProfit.toFixed(0)}
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize: "0.6875rem", color: "var(--text-muted)" }}>Dues</div>
-              <div className="font-mono" style={{ fontSize: "0.9375rem", fontWeight: 700, color: selectedDayDue > 0 ? "var(--rose-due)" : "var(--text-muted)" }}>
-                ₹{selectedDayDue.toFixed(0)}
-              </div>
-            </div>
-          </div>
-
-          {/* List of Tasks for this day */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "460px", overflowY: "auto" }}>
-            {selectedDayTasks.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "32px 12px", color: "var(--text-muted)", fontSize: "0.875rem" }}>
-                <CalendarIcon size={32} style={{ margin: "0 auto 8px", opacity: 0.4 }} />
-                <p>No tasks recorded on this date.</p>
-                <button
-                  onClick={() => onOpenNewTaskForDate(selectedDayStr)}
-                  className="btn btn-sm btn-outline"
-                  style={{ marginTop: "10px" }}
-                >
-                  <Plus size={13} /> Add Entry for {selectedDayStr}
-                </button>
-              </div>
-            ) : (
-              selectedDayTasks.map((t) => (
-                <TaskCard
-                  key={t.id}
-                  task={t}
-                  onEdit={onEditTask}
-                  onDelete={deleteTask}
-                  onSettleDue={onSettleDue}
-                />
-              ))
-            )}
-          </div>
+            );
+          })}
         </div>
       </div>
+
+      {/* Selected Date Modal (Opens when clicked on a calendar date) */}
+      {isDateModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsDateModalOpen(false)}>
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: "620px" }}
+          >
+            {/* Fixed Header */}
+            <div className="modal-header">
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div
+                  style={{
+                    width: "38px",
+                    height: "38px",
+                    borderRadius: "var(--radius-md)",
+                    background: "rgba(2, 132, 199, 0.15)",
+                    color: "var(--accent-primary)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <CalendarIcon size={20} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: "1.125rem", fontWeight: 800, color: "var(--text-bright)", margin: 0 }}>
+                    Tasks for {selectedDayStr}
+                  </h3>
+                  <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)", margin: "2px 0 0" }}>
+                    {selectedDayTasks.length} {selectedDayTasks.length === 1 ? "task entry" : "task entries"} recorded
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <button
+                  onClick={() => {
+                    setIsDateModalOpen(false);
+                    onSwitchToDayView(selectedDayStr);
+                  }}
+                  className="btn btn-sm btn-secondary"
+                  title="Open detailed Day View with cash drawer"
+                >
+                  Day View <ArrowRight size={13} />
+                </button>
+                <button
+                  onClick={() => setIsDateModalOpen(false)}
+                  className="btn btn-outline"
+                  style={{ padding: "6px", borderRadius: "50%", width: "32px", height: "32px" }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Scrollable Body */}
+            <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              {/* Day Metrics */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, 1fr)",
+                  gap: "10px",
+                  background: "var(--bg-card-hover)",
+                  padding: "12px 14px",
+                  borderRadius: "var(--radius-md)",
+                  border: "1px solid var(--border-subtle)",
+                  textAlign: "center",
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: "0.6875rem", color: "var(--text-muted)" }}>Total Billed</div>
+                  <div className="font-mono" style={{ fontSize: "1.125rem", fontWeight: 700, color: "var(--text-bright)" }}>
+                    ₹{selectedDayBilled.toFixed(0)}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "0.6875rem", color: "var(--text-muted)" }}>Net Profit</div>
+                  <div className="font-mono" style={{ fontSize: "1.125rem", fontWeight: 700, color: "var(--emerald-profit)" }}>
+                    +₹{selectedDayProfit.toFixed(0)}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "0.6875rem", color: "var(--text-muted)" }}>Pending Dues</div>
+                  <div className="font-mono" style={{ fontSize: "1.125rem", fontWeight: 700, color: selectedDayDue > 0 ? "var(--rose-due)" : "var(--text-muted)" }}>
+                    ₹{selectedDayDue.toFixed(0)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Tasks List */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {selectedDayTasks.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "36px 16px", color: "var(--text-muted)" }}>
+                    <CalendarIcon size={36} style={{ margin: "0 auto 10px", opacity: 0.35 }} />
+                    <p style={{ fontWeight: 600, fontSize: "0.875rem", marginBottom: "4px" }}>
+                      No tasks recorded on this date
+                    </p>
+                    <p style={{ fontSize: "0.75rem", marginBottom: "14px" }}>
+                      Click below to add a new task for {selectedDayStr}.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setIsDateModalOpen(false);
+                        onOpenNewTaskForDate(selectedDayStr);
+                      }}
+                      className="btn btn-sm btn-primary"
+                    >
+                      <Plus size={13} /> Add Task for {selectedDayStr}
+                    </button>
+                  </div>
+                ) : (
+                  selectedDayTasks.map((t) => (
+                    <TaskCard
+                      key={t.id}
+                      task={t}
+                      onEdit={(task) => {
+                        setIsDateModalOpen(false);
+                        onEditTask(task);
+                      }}
+                      onDelete={deleteTask}
+                      onSettleDue={onSettleDue}
+                    />
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Fixed Footer */}
+            <div className="modal-footer" style={{ justifyContent: "space-between" }}>
+              <button
+                onClick={() => {
+                  setIsDateModalOpen(false);
+                  onOpenNewTaskForDate(selectedDayStr);
+                }}
+                className="btn btn-sm btn-primary"
+              >
+                <Plus size={13} /> Add Task for this Date
+              </button>
+              <button onClick={() => setIsDateModalOpen(false)} className="btn btn-sm btn-secondary">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

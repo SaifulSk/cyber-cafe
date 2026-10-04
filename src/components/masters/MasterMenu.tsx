@@ -21,6 +21,7 @@ import { ServiceMasterItem, ServiceCategory, Customer, CategoryCustomField } fro
 import { useData } from "../../context/DataContext";
 import { CategoryIcon, getCategoryColor, formatCategoryLabel } from "../common/CategoryIcon";
 import { CustomerModal } from "../customers/CustomerModal";
+import { ConfirmDeleteModal } from "../common/ConfirmDeleteModal";
 
 export const MasterMenu: React.FC = () => {
   const { services, addService, updateService, deleteService, customers, deleteCustomer } = useData();
@@ -34,6 +35,13 @@ export const MasterMenu: React.FC = () => {
   // Customer Edit Modal
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState<boolean>(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+
+  // Delete Target for popup
+  const [deleteTarget, setDeleteTarget] = useState<{
+    type: "category" | "customer";
+    id: string;
+    name: string;
+  } | null>(null);
 
   // Form states for service modal (only category name and dynamic custom fields)
   const [srvName, setSrvName] = useState<string>("");
@@ -256,11 +264,7 @@ export const MasterMenu: React.FC = () => {
                         <Edit2 size={13} />
                       </button>
                       <button
-                        onClick={() => {
-                          if (window.confirm(`Delete category "${srv.name}"?`)) {
-                            deleteService(srv.id);
-                          }
-                        }}
+                        onClick={() => setDeleteTarget({ type: "category", id: srv.id, name: srv.name })}
                         className="btn btn-sm btn-danger-outline"
                         style={{ padding: "4px 8px" }}
                         title="Delete Category"
@@ -380,11 +384,7 @@ export const MasterMenu: React.FC = () => {
                             <Edit2 size={12} />
                           </button>
                           <button
-                            onClick={() => {
-                              if (window.confirm(`Delete customer ${c.name}?`)) {
-                                deleteCustomer(c.id);
-                              }
-                            }}
+                            onClick={() => setDeleteTarget({ type: "customer", id: c.id, name: c.name })}
                             className="btn btn-sm btn-danger-outline"
                             style={{ padding: "4px 8px" }}
                             title="Delete Customer"
@@ -526,6 +526,27 @@ export const MasterMenu: React.FC = () => {
         isOpen={isCustomerModalOpen}
         onClose={() => setIsCustomerModalOpen(false)}
         customerToEdit={editingCustomer}
+      />
+
+      {/* Delete Confirmation Popup */}
+      <ConfirmDeleteModal
+        isOpen={!!deleteTarget}
+        title={deleteTarget?.type === "category" ? "Delete Master Category" : "Delete Customer Master"}
+        message={
+          deleteTarget?.type === "category"
+            ? `Are you sure you want to delete category "${deleteTarget?.name}"? Existing tasks will retain their records.`
+            : `Are you sure you want to delete customer "${deleteTarget?.name}" from master directory?`
+        }
+        confirmText="Delete"
+        onConfirm={async () => {
+          if (!deleteTarget) return;
+          if (deleteTarget.type === "category") {
+            await deleteService(deleteTarget.id);
+          } else {
+            await deleteCustomer(deleteTarget.id);
+          }
+        }}
+        onClose={() => setDeleteTarget(null)}
       />
     </div>
   );
