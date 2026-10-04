@@ -22,7 +22,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   // Form State
   const [selectedServiceId, setSelectedServiceId] = useState<string>("");
   const [title, setTitle] = useState<string>("");
-  const [category, setCategory] = useState<ServiceCategory>("other");
+  const [category, setCategory] = useState<string>("");
+  const [customCategory, setCustomCategory] = useState<string>("");
   const [customerName, setCustomerName] = useState<string>("");
   const [customerPhone, setCustomerPhone] = useState<string>("");
   const [showCustomerDropdown, setShowCustomerDropdown] = useState<boolean>(false);
@@ -56,7 +57,14 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   useEffect(() => {
     if (taskToEdit) {
       setTitle(taskToEdit.title);
-      setCategory(taskToEdit.serviceCategory);
+      const isKnown = services.some((s) => s.name.toLowerCase() === (taskToEdit.serviceCategory || "").toLowerCase());
+      if (isKnown || !taskToEdit.serviceCategory) {
+        setCategory(taskToEdit.serviceCategory || (services.length > 0 ? services[0].name : ""));
+        setCustomCategory("");
+      } else {
+        setCategory("other");
+        setCustomCategory(taskToEdit.serviceCategory);
+      }
       setCustomerName(taskToEdit.customerName);
       setCustomerPhone(taskToEdit.customerPhone || "");
       setDate(taskToEdit.date);
@@ -70,34 +78,56 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       setNotes(taskToEdit.notes || "");
     } else {
       // Reset form
-      setSelectedServiceId("");
-      setTitle("");
-      setCategory("other");
+      if (services.length > 0) {
+        const first = services[0];
+        setSelectedServiceId(first.id);
+        setCategory(first.name);
+        setCustomCategory("");
+        setTitle(first.name);
+        setAmountIncurred(first.defaultIncurredCost);
+        setAmountCharged(first.defaultFee);
+        setAmountPaid(first.defaultFee);
+      } else {
+        setSelectedServiceId("");
+        setCategory("");
+        setCustomCategory("");
+        setTitle("");
+        setAmountIncurred("");
+        setAmountCharged("");
+        setAmountPaid("");
+      }
       setCustomerName("");
       setCustomerPhone("");
       setDate(defaultDate || new Date().toISOString().split("T")[0]);
       setTime(new Date().toTimeString().split(" ")[0].substring(0, 5));
-      setAmountIncurred("");
-      setAmountCharged("");
-      setAmountPaid("");
       setPaymentMode("cash");
       setStatus("completed");
       setReferenceNo("");
       setNotes("");
       setErrorMsg("");
     }
-  }, [taskToEdit, defaultDate, isOpen]);
+  }, [taskToEdit, defaultDate, isOpen, services]);
 
-  // When a Master Service is picked, pre-fill defaults
-  const handleServiceSelect = (serviceId: string) => {
-    setSelectedServiceId(serviceId);
-    const selected = services.find((s) => s.id === serviceId);
-    if (selected) {
-      setTitle(selected.name);
-      setCategory(selected.category);
-      setAmountIncurred(selected.defaultIncurredCost);
-      setAmountCharged(selected.defaultFee);
-      setAmountPaid(selected.defaultFee); // default to fully paid
+  // When a Master Category is chosen, pre-fill defaults
+  const handleCategorySelect = (selectedCat: string) => {
+    setCategory(selectedCat);
+    if (selectedCat === "other") {
+      setSelectedServiceId("");
+      return;
+    }
+
+    const matched = services.find((s) => s.name === selectedCat);
+    if (matched) {
+      setSelectedServiceId(matched.id);
+      setAmountIncurred(matched.defaultIncurredCost);
+      setAmountCharged(matched.defaultFee);
+      setAmountPaid(matched.defaultFee);
+      // Auto-set or update title if it was empty or matched a master category
+      if (!title.trim() || services.some((s) => s.name === title)) {
+        setTitle(matched.name);
+      }
+    } else {
+      setSelectedServiceId("");
     }
   };
 
@@ -121,7 +151,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
-      setErrorMsg("Please enter a task title or select a service from the Master Menu");
+      setErrorMsg("Please enter a task title or description");
       return;
     }
     if (!customerName.trim()) {
@@ -129,13 +159,16 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       return;
     }
 
+    const resolvedCategory =
+      (category === "other" ? customCategory.trim() : category.trim()) || "General";
+
     setSubmitting(true);
     setErrorMsg("");
 
     try {
       const taskData = {
         title: title.trim(),
-        serviceCategory: category,
+        serviceCategory: resolvedCategory,
         serviceId: selectedServiceId || undefined,
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim() || undefined,
@@ -229,34 +262,45 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               </div>
             )}
 
-            {/* Service Picker from Master Menu (Only if user has created master services) */}
-            {services.length > 0 && (
-              <div>
-                <label className="form-label" style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span>Select from Master Menu (Optional)</span>
-                  <span style={{ fontSize: "0.75rem", color: "var(--accent-primary)", fontWeight: 500 }}>
-                    Auto-fills rates
-                  </span>
-                </label>
-                <select
-                  className="form-select"
-                  value={selectedServiceId}
-                  onChange={(e) => handleServiceSelect(e.target.value)}
-                >
-                  <option value="">-- Choose from your Master Menu --</option>
-                  {services.map((srv) => (
-                    <option key={srv.id} value={srv.id}>
-                      {srv.name} {srv.defaultFee > 0 ? `(Cost: ₹${srv.defaultIncurredCost} | Fee: ₹${srv.defaultFee})` : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* Title & Category */}
-            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "12px" }}>
+            {/* Category & Title */}
+            <div style={{ display: "grid", gridTemplateColumns: services.length > 0 ? "1fr 1.3fr" : "1fr 1.5fr", gap: "12px" }}>
               <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Task Title / Description *</label>
+                <label className="form-label" style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>Category *</span>
+                  {services.length > 0 && (
+                    <span style={{ fontSize: "0.75rem", color: "var(--accent-primary)", fontWeight: 500 }}>
+                      Master Menu
+                    </span>
+                  )}
+                </label>
+                {services.length > 0 ? (
+                  <select
+                    className="form-select"
+                    value={category}
+                    onChange={(e) => handleCategorySelect(e.target.value)}
+                    required
+                  >
+                    {services.map((srv) => (
+                      <option key={srv.id} value={srv.name}>
+                        {srv.name} {srv.defaultFee > 0 ? `(₹${srv.defaultFee})` : ""}
+                      </option>
+                    ))}
+                    <option value="other">+ Other / Custom Category</option>
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. Recharge, Electricity Bill, AEPS"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    required
+                  />
+                )}
+              </div>
+
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label">Task Title / Details *</label>
                 <input
                   type="text"
                   className="form-input"
@@ -266,30 +310,22 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   required
                 />
               </div>
-
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Service Master Category</label>
-                <select
-                  className="form-select"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value as ServiceCategory)}
-                >
-                  <option value="recharge">Recharge</option>
-                  <option value="aeps">AEPS</option>
-                  <option value="electric_bill">Electric Bill</option>
-                  <option value="ration_card">Ration Card</option>
-                  <option value="voter_card">Voter Card</option>
-                  <option value="pan_card">PAN Card</option>
-                  <option value="money_transfer">Money Transfer</option>
-                  <option value="aadhaar_services">Aadhaar Services</option>
-                  <option value="certificates">Certificates</option>
-                  <option value="printing_xerox">Printing / Xerox</option>
-                  <option value="ticket_booking">Ticket Booking</option>
-                  <option value="pm_kisan">PM-Kisan</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
             </div>
+
+            {/* Custom Category Input if "Other" is selected */}
+            {category === "other" && services.length > 0 && (
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label">Custom Category Name *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Enter custom category name (e.g. Passport, Pan Card, Xerox)..."
+                  value={customCategory}
+                  onChange={(e) => setCustomCategory(e.target.value)}
+                  required
+                />
+              </div>
+            )}
 
             {/* Customer Details with Master Auto-Suggest */}
             <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "12px" }}>

@@ -37,7 +37,6 @@ export const MasterMenu: React.FC = () => {
 
   // Form states for service modal
   const [srvName, setSrvName] = useState<string>("");
-  const [srvCategory, setSrvCategory] = useState<ServiceCategory>("other");
   const [srvCost, setSrvCost] = useState<number | "">("");
   const [srvFee, setSrvFee] = useState<number | "">("");
   const [srvDesc, setSrvDesc] = useState<string>("");
@@ -45,9 +44,8 @@ export const MasterMenu: React.FC = () => {
   const openAddServiceModal = () => {
     setEditingService(null);
     setSrvName("");
-    setSrvCategory("other");
     setSrvCost(0);
-    setSrvFee(50);
+    setSrvFee(0);
     setSrvDesc("");
     setIsServiceModalOpen(true);
   };
@@ -55,7 +53,6 @@ export const MasterMenu: React.FC = () => {
   const openEditServiceModal = (item: ServiceMasterItem) => {
     setEditingService(item);
     setSrvName(item.name);
-    setSrvCategory(item.category);
     setSrvCost(item.defaultIncurredCost);
     setSrvFee(item.defaultFee);
     setSrvDesc(item.description || "");
@@ -64,15 +61,16 @@ export const MasterMenu: React.FC = () => {
 
   const handleSaveService = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!srvName.trim()) return;
+    const cleanName = srvName.trim();
+    if (!cleanName) return;
 
     const data = {
-      name: srvName.trim(),
-      category: srvCategory,
+      name: cleanName,
+      category: cleanName,
       defaultIncurredCost: Number(srvCost) || 0,
       defaultFee: Number(srvFee) || 0,
-      icon: srvCategory,
-      color: getCategoryColor(srvCategory),
+      icon: cleanName,
+      color: getCategoryColor(cleanName),
       description: srvDesc.trim() || undefined,
       isActive: true,
     };
@@ -98,13 +96,13 @@ export const MasterMenu: React.FC = () => {
             Master Menu Management
           </h2>
           <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>
-            Configure predefined digital seva services, default commission rates, and customer directory
+            Configure digital seva categories, default commission rates, and customer directory
           </p>
         </div>
 
         {activeTab === "services" ? (
           <button onClick={openAddServiceModal} className="btn btn-primary">
-            <Plus size={16} /> Add Custom Service
+            <Plus size={16} /> Add Master Category
           </button>
         ) : (
           <button
@@ -132,7 +130,7 @@ export const MasterMenu: React.FC = () => {
           onClick={() => setActiveTab("services")}
           className={`btn ${activeTab === "services" ? "btn-primary" : "btn-secondary"}`}
         >
-          <Layers size={16} /> Services Master ({services.length})
+          <Layers size={16} /> Master Categories ({services.length})
         </button>
 
         <button
@@ -161,7 +159,7 @@ export const MasterMenu: React.FC = () => {
           >
             <Sparkles size={18} style={{ color: "var(--accent-primary)", flexShrink: 0 }} />
             <span>
-              These master services appear in the "+ New Task" dropdown. Selecting any service will automatically populate the standard operator cost, customer fee, and profit margin.
+              These master categories appear when recording tasks. Selecting any category will automatically fill your standard cost, fee, and calculate profit.
             </span>
           </div>
 
@@ -169,13 +167,13 @@ export const MasterMenu: React.FC = () => {
             <div className="glass-panel" style={{ padding: "48px 24px", textAlign: "center" }}>
               <Layers size={36} style={{ margin: "0 auto 12px", opacity: 0.4 }} />
               <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-bright)" }}>
-                No Master Services Configured Yet
+                No Master Categories Configured Yet
               </h3>
               <p style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", maxWidth: "420px", margin: "6px auto 14px" }}>
-                Add your common services (e.g. Recharge, AEPS, Electric Bill, Ration Card, Voter Card) to create your custom Master Menu.
+                Add your common categories (e.g. Recharge, AEPS, Electric Bill, Ration Card, Voter Card) to create your custom Master Menu.
               </p>
               <button onClick={openAddServiceModal} className="btn btn-primary btn-sm">
-                <Plus size={14} /> Add First Service Item
+                <Plus size={14} /> Add First Category
               </button>
             </div>
           ) : (
@@ -226,7 +224,7 @@ export const MasterMenu: React.FC = () => {
                           {srv.name}
                         </h4>
                         <span style={{ fontSize: "0.6875rem", color: color, fontWeight: 600 }}>
-                          {formatCategoryLabel(srv.category)}
+                          Master Category
                         </span>
                       </div>
                     </div>
@@ -236,19 +234,19 @@ export const MasterMenu: React.FC = () => {
                         onClick={() => openEditServiceModal(srv)}
                         className="btn btn-sm btn-outline"
                         style={{ padding: "4px 8px" }}
-                        title="Edit Master Service"
+                        title="Edit Master Category"
                       >
                         <Edit2 size={13} />
                       </button>
                       <button
                         onClick={() => {
-                          if (window.confirm(`Delete service "${srv.name}"?`)) {
+                          if (window.confirm(`Delete category "${srv.name}"?`)) {
                             deleteService(srv.id);
                           }
                         }}
                         className="btn btn-sm btn-danger-outline"
                         style={{ padding: "4px 8px" }}
-                        title="Delete Service"
+                        title="Delete Category"
                       >
                         <Trash2 size={13} />
                       </button>
@@ -401,7 +399,7 @@ export const MasterMenu: React.FC = () => {
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "520px" }}>
             <div className="modal-header">
               <h3 style={{ fontSize: "1.125rem", fontWeight: 700, color: "var(--text-bright)" }}>
-                {editingService ? "Edit Master Service Item" : "Add New Master Service"}
+                {editingService ? "Edit Master Category" : "Add New Master Category"}
               </h3>
               <button
                 onClick={() => setIsServiceModalOpen(false)}
@@ -415,38 +413,15 @@ export const MasterMenu: React.FC = () => {
             <form onSubmit={handleSaveService}>
               <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">Service Title *</label>
+                  <label className="form-label">Category Name *</label>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="e.g. WBSEDCL Electric Bill / Jio Recharge"
+                    placeholder="e.g. Recharge, AEPS, Electric Bill, Ration Card, Voter Card, PAN Card..."
                     value={srvName}
                     onChange={(e) => setSrvName(e.target.value)}
                     required
                   />
-                </div>
-
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">Category</label>
-                  <select
-                    className="form-select"
-                    value={srvCategory}
-                    onChange={(e) => setSrvCategory(e.target.value as ServiceCategory)}
-                  >
-                    <option value="recharge">Mobile / DTH Recharge</option>
-                    <option value="aeps">AEPS Cash Out & Deposit</option>
-                    <option value="electric_bill">Electricity Bill Payment</option>
-                    <option value="ration_card">Ration Card Services</option>
-                    <option value="voter_card">Voter Card Services</option>
-                    <option value="pan_card">PAN Card Services</option>
-                    <option value="money_transfer">Money Remittance (DMT)</option>
-                    <option value="aadhaar_services">Aadhaar PVC & Prints</option>
-                    <option value="certificates">Caste / Income Certificates</option>
-                    <option value="printing_xerox">Printing & Xerox</option>
-                    <option value="ticket_booking">Train / Flight Tickets</option>
-                    <option value="pm_kisan">PM-Kisan Services</option>
-                    <option value="other">Other Cyber Cafe Service</option>
-                  </select>
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
@@ -493,7 +468,7 @@ export const MasterMenu: React.FC = () => {
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  Save Master Service
+                  {editingService ? "Update Category" : "Save Master Category"}
                 </button>
               </div>
             </form>

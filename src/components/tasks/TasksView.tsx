@@ -31,6 +31,16 @@ export const TasksView: React.FC<TasksViewProps> = ({
   const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split("T")[0];
   const currentMonthPrefix = todayStr.substring(0, 7); // YYYY-MM
 
+  // Dynamic categories from services and tasks
+  const availableCategories = useMemo(() => {
+    const set = new Set<string>();
+    services.forEach((s) => set.add(s.name));
+    tasks.forEach((t) => {
+      if (t.serviceCategory) set.add(t.serviceCategory);
+    });
+    return Array.from(set);
+  }, [services, tasks]);
+
   // Filter tasks
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
@@ -45,7 +55,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
       }
 
       // 2. Category filter
-      if (selectedCategory !== "all" && task.serviceCategory !== selectedCategory) {
+      if (selectedCategory !== "all" && (task.serviceCategory || "").toLowerCase() !== selectedCategory.toLowerCase()) {
         return false;
       }
 
@@ -242,13 +252,13 @@ export const TasksView: React.FC<TasksViewProps> = ({
             All Services ({tasks.length})
           </button>
 
-          {services.map((srv) => {
-            const count = tasks.filter((t) => t.serviceCategory === srv.category).length;
-            const isSelected = selectedCategory === srv.category;
+          {availableCategories.map((cat) => {
+            const count = tasks.filter((t) => (t.serviceCategory || "").toLowerCase() === cat.toLowerCase()).length;
+            const isSelected = selectedCategory.toLowerCase() === cat.toLowerCase();
             return (
               <button
-                key={srv.id}
-                onClick={() => setSelectedCategory(srv.category)}
+                key={cat}
+                onClick={() => setSelectedCategory(isSelected ? "all" : cat)}
                 className={`btn btn-sm ${isSelected ? "btn-primary" : "btn-secondary"}`}
                 style={{
                   padding: "5px 12px",
@@ -256,10 +266,11 @@ export const TasksView: React.FC<TasksViewProps> = ({
                   display: "inline-flex",
                   alignItems: "center",
                   gap: "6px",
+                  whiteSpace: "nowrap",
                 }}
               >
-                <CategoryIcon category={srv.category} size={13} />
-                <span>{srv.name.split(" ")[0]}</span>
+                <CategoryIcon category={cat} size={13} />
+                <span>{cat}</span>
                 <span style={{ opacity: 0.7, fontSize: "0.6875rem" }}>({count})</span>
               </button>
             );

@@ -1,17 +1,4 @@
-export type ServiceCategory =
-  | 'recharge'
-  | 'aeps'
-  | 'electric_bill'
-  | 'ration_card'
-  | 'voter_card'
-  | 'pan_card'
-  | 'money_transfer'
-  | 'aadhaar_services'
-  | 'certificates'
-  | 'printing_xerox'
-  | 'ticket_booking'
-  | 'pm_kisan'
-  | 'other';
+export type ServiceCategory = string;
 
 export type TaskStatus = 'completed' | 'in_progress' | 'pending' | 'delivered' | 'cancelled';
 
@@ -63,13 +50,13 @@ export interface ServiceMasterItem {
   id: string;
   userId?: string;
   name: string;
-  category: ServiceCategory;
+  category?: ServiceCategory;
   defaultIncurredCost: number;
   defaultFee: number;
-  icon: string;
-  color: string;
+  icon?: string;
+  color?: string;
   description?: string;
-  isActive: boolean;
+  isActive?: boolean;
 }
 
 export interface UserProfile {
