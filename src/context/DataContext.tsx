@@ -40,6 +40,7 @@ interface DataContextType {
   updateService: (srv: ServiceMasterItem) => Promise<ServiceMasterItem>;
   deleteService: (srvId: string) => Promise<void>;
   recordDuePayment: (record: Omit<DuePaymentRecord, "id" | "userId" | "createdAt"> & { id?: string }) => Promise<DuePaymentRecord>;
+  updateDuePayment: (record: DuePaymentRecord) => Promise<DuePaymentRecord>;
   deleteDuePayment: (paymentId: string) => Promise<void>;
   settleDue: (
     customerName: string,
@@ -80,8 +81,8 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentUser, isDemoUser, userProfile } = useAuth();
-  const activeUid = currentUser?.uid || (isDemoUser ? "demo_csc_operator" : "guest_operator");
+  const { currentUser, userProfile } = useAuth();
+  const activeUid = currentUser?.uid || "guest_operator";
 
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -201,6 +202,53 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ) => {
     const saved = await saveDuePaymentRecord(activeUid, recordData);
     setDuePayments((prev) => [saved, ...prev.filter((p) => p.id !== saved.id)]);
+    return saved;
+  };
+
+  const updateDuePayment = async (updatedRecord: DuePaymentRecord) => {
+    // 1. If amount changed, adjust the linked task
+    const oldRecord = duePayments.find((p) => p.id === updatedRecord.id);
+    if (oldRecord) {
+      const oldAmount = Number(oldRecord.amount) || 0;
+      const newAmount = Number(updatedRecord.amount) || 0;
+      const diff = newAmount - oldAmount; // positive if paid more, negative if paid less
+
+      if (diff !== 0) {
+        let targetTask: TaskItem | undefined;
+        if (updatedRecord.taskId) {
+          targetTask = tasks.find((t) => t.id === updatedRecord.taskId);
+        }
+        if (!targetTask && updatedRecord.customerName) {
+          const custTasks = tasks.filter(
+            (t) => t.customerName.toLowerCase().trim() === updatedRecord.customerName.toLowerCase().trim()
+          );
+          targetTask = custTasks.find((t) => t.title === updatedRecord.taskTitle) || custTasks[0];
+        }
+
+        if (targetTask) {
+          const currentPaid = Number(targetTask.amountPaid) || 0;
+          const currentCharged = Number(targetTask.amountCharged) || 0;
+          const newPaid = Math.max(0, currentPaid + diff);
+          const newDue = Math.max(0, currentCharged - newPaid);
+          const newStatus = newDue === 0 ? "completed" : targetTask.status;
+
+          const updatedTask: TaskItem = {
+            ...targetTask,
+            amountPaid: newPaid,
+            dueAmount: newDue,
+            status: newStatus,
+            updatedAt: Date.now(),
+          };
+
+          await saveTaskItem(activeUid, updatedTask);
+          setTasks((prev) => prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
+        }
+      }
+    }
+
+    // 2. Persist updated due payment record
+    const saved = await saveDuePaymentRecord(activeUid, updatedRecord);
+    setDuePayments((prev) => prev.map((p) => (p.id === saved.id ? saved : p)));
     return saved;
   };
 
@@ -501,6 +549,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateService,
         deleteService,
         recordDuePayment,
+        updateDuePayment,
         deleteDuePayment,
         settleDue,
         todayStats,

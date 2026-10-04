@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   History,
   Search,
@@ -6,22 +6,206 @@ import {
   Calendar,
   Filter,
   Trash2,
-  ArrowUpDown,
+  Edit2,
+  X,
   CreditCard,
-  User,
   Clock,
   Download
 } from "lucide-react";
 import { useData } from "../../context/DataContext";
-import { DuePaymentRecord } from "../../types";
+import { DuePaymentRecord, PaymentMode } from "../../types";
 import { StatCard } from "../common/StatCard";
 
+interface EditDuePaymentModalProps {
+  record: DuePaymentRecord;
+  onClose: () => void;
+  onSave: (record: DuePaymentRecord) => Promise<void>;
+}
+
+const EditDuePaymentModal: React.FC<EditDuePaymentModalProps> = ({ record, onClose, onSave }) => {
+  const [amount, setAmount] = useState<number | "">(record.amount);
+  const [paidDate, setPaidDate] = useState<string>(record.paidDate || "");
+  const [paidTime, setPaidTime] = useState<string>(record.paidTime || "");
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>(record.paymentMode || "cash");
+  const [notes, setNotes] = useState<string>(record.notes || "");
+  const [submitting, setSubmitting] = useState<boolean>(false);
+
+  useEffect(() => {
+    document.body.classList.add("modal-open");
+    return () => document.body.classList.remove("modal-open");
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const val = Number(amount);
+    if (!val || val <= 0) return;
+
+    setSubmitting(true);
+    try {
+      await onSave({
+        ...record,
+        amount: val,
+        paidDate,
+        paidTime,
+        paymentMode,
+        notes: notes.trim(),
+      });
+      onClose();
+    } catch (err: any) {
+      alert("Error updating record: " + err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "460px" }}>
+        <div className="modal-header">
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div
+              style={{
+                width: "36px",
+                height: "36px",
+                borderRadius: "var(--radius-md)",
+                background: "rgba(2, 132, 199, 0.15)",
+                color: "var(--accent-primary)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Edit2 size={18} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: "1.125rem", fontWeight: 700, color: "var(--text-bright)" }}>
+                Edit Settlement Record
+              </h3>
+              <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
+                Update collection amount, date, payment mode or notes
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="btn btn-outline"
+            style={{ padding: "6px", borderRadius: "50%", width: "32px", height: "32px" }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            {/* Meta Info banner */}
+            <div
+              style={{
+                background: "rgba(0,0,0,0.25)",
+                padding: "12px",
+                borderRadius: "var(--radius-md)",
+                border: "1px solid var(--border-subtle)",
+              }}
+            >
+              <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Customer:</div>
+              <div style={{ fontWeight: 700, color: "var(--text-bright)", fontSize: "0.875rem" }}>
+                {record.customerName}
+              </div>
+              <div style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", marginTop: "2px" }}>
+                Task: <strong>{record.taskTitle}</strong>
+              </div>
+            </div>
+
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">Payment Amount Collected (₹) *</label>
+              <div style={{ position: "relative" }}>
+                <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--emerald-profit)", fontWeight: 700 }}>
+                  ₹
+                </span>
+                <input
+                  type="number"
+                  step="any"
+                  min="0.01"
+                  className="form-input font-mono"
+                  style={{ paddingLeft: "28px" }}
+                  placeholder="Enter payment amount"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value === "" ? "" : Number(e.target.value))}
+                  required
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="task-modal-grid-2">
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label">Payment Date</label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={paidDate}
+                  onChange={(e) => setPaidDate(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label">Payment Time</label>
+                <input
+                  type="time"
+                  className="form-input"
+                  value={paidTime}
+                  onChange={(e) => setPaidTime(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">Payment Mode</label>
+              <select
+                className="form-select"
+                value={paymentMode}
+                onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
+              >
+                <option value="cash">Cash</option>
+                <option value="upi">UPI / QR</option>
+                <option value="bank_transfer">Card / Bank Transfer</option>
+              </select>
+            </div>
+
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">Notes / Remarks</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Enter payment notes or reference"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="modal-footer">
+            <button type="button" onClick={onClose} className="btn btn-outline" disabled={submitting}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={submitting || !amount}>
+              {submitting ? "Saving..." : "Update Record"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 export const DuePaymentsView: React.FC = () => {
-  const { duePayments, deleteDuePayment } = useData();
+  const { duePayments, deleteDuePayment, updateDuePayment } = useData();
 
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [customDate, setCustomDate] = useState<string>("");
+  const [editingRecord, setEditingRecord] = useState<DuePaymentRecord | null>(null);
 
   const todayStr = new Date().toISOString().split("T")[0];
   const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split("T")[0];
@@ -132,7 +316,7 @@ export const DuePaymentsView: React.FC = () => {
           value={`₹${filteredTotal.toFixed(2)}`}
           subValue={`${filteredRecords.length} records matching filters`}
           icon={CreditCard}
-          variant="purple"
+          variant="indigo"
         />
       </div>
 
@@ -146,11 +330,11 @@ export const DuePaymentsView: React.FC = () => {
           gap: "12px",
         }}
       >
-        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
           {/* Search Box */}
-          <div style={{ flex: 1, minWidth: "240px", position: "relative" }}>
+          <div style={{ position: "relative", flex: "1 1 260px", maxWidth: "400px" }}>
             <Search
-              size={16}
+              size={15}
               style={{
                 position: "absolute",
                 left: "12px",
@@ -169,69 +353,100 @@ export const DuePaymentsView: React.FC = () => {
             />
           </div>
 
-          {/* Date Filter */}
-          <select
-            className="form-select"
-            style={{ width: "auto", minWidth: "160px" }}
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-          >
-            <option value="all">All Dates</option>
-            <option value="today">Today</option>
-            <option value="yesterday">Yesterday</option>
-            <option value="this_month">This Month</option>
-            <option value="custom">Custom Date</option>
-          </select>
+          {/* Date Filter Badges */}
+          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
+            <button
+              onClick={() => setDateFilter("all")}
+              className={`btn btn-sm ${dateFilter === "all" ? "btn-primary" : "btn-outline"}`}
+            >
+              All Time
+            </button>
+            <button
+              onClick={() => setDateFilter("today")}
+              className={`btn btn-sm ${dateFilter === "today" ? "btn-primary" : "btn-outline"}`}
+            >
+              Today
+            </button>
+            <button
+              onClick={() => setDateFilter("yesterday")}
+              className={`btn btn-sm ${dateFilter === "yesterday" ? "btn-primary" : "btn-outline"}`}
+            >
+              Yesterday
+            </button>
+            <button
+              onClick={() => setDateFilter("this_month")}
+              className={`btn btn-sm ${dateFilter === "this_month" ? "btn-primary" : "btn-outline"}`}
+            >
+              This Month
+            </button>
+            <button
+              onClick={() => setDateFilter("custom")}
+              className={`btn btn-sm ${dateFilter === "custom" ? "btn-primary" : "btn-outline"}`}
+            >
+              Custom Date
+            </button>
 
-          {dateFilter === "custom" && (
-            <input
-              type="date"
-              className="form-input"
-              style={{ width: "auto" }}
-              value={customDate}
-              onChange={(e) => setCustomDate(e.target.value)}
-            />
-          )}
+            {dateFilter === "custom" && (
+              <input
+                type="date"
+                className="form-input"
+                style={{ width: "auto", padding: "4px 8px", fontSize: "0.8125rem" }}
+                value={customDate}
+                onChange={(e) => setCustomDate(e.target.value)}
+              />
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Records Table */}
-      <div className="glass-panel" style={{ padding: "20px" }}>
+      {/* Audit Table */}
+      <div className="glass-panel" style={{ padding: 0, overflow: "hidden" }}>
         {filteredRecords.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "48px 20px" }}>
-            <History size={40} style={{ margin: "0 auto 12px", opacity: 0.35 }} />
-            <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-bright)" }}>
-              No Due Payment Records Found
-            </h3>
-            <p style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", maxWidth: "400px", margin: "6px auto 0" }}>
-              When you click "Collect Due" on any task with pending dues, the settlement record and time stamp will appear here automatically.
+          <div style={{ padding: "48px 20px", textAlign: "center", color: "var(--text-muted)" }}>
+            <History size={36} style={{ margin: "0 auto 12px", opacity: 0.3 }} />
+            <p style={{ fontWeight: 600, fontSize: "0.9375rem", marginBottom: "4px" }}>
+              No settlement payment records found
+            </p>
+            <p style={{ fontSize: "0.75rem" }}>
+              Payments collected when clearing customer dues will be permanently catalogued here.
             </p>
           </div>
         ) : (
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8125rem" }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--border-subtle)", textAlign: "left", color: "var(--text-muted)" }}>
+                <tr
+                  style={{
+                    borderBottom: "1px solid var(--border-subtle)",
+                    background: "rgba(0,0,0,0.15)",
+                    textAlign: "left",
+                    color: "var(--text-secondary)",
+                    fontWeight: 700,
+                  }}
+                >
                   <th style={{ padding: "10px 14px" }}>Date & Time</th>
-                  <th style={{ padding: "10px 14px" }}>Customer Name</th>
-                  <th style={{ padding: "10px 14px" }}>Task / Description</th>
-                  <th style={{ padding: "10px 14px" }}>Amount Collected</th>
-                  <th style={{ padding: "10px 14px" }}>Payment Mode</th>
-                  <th style={{ padding: "10px 14px" }}>Receipt Notes</th>
-                  <th style={{ padding: "10px 14px", textAlign: "right" }}>Action</th>
+                  <th style={{ padding: "10px 14px" }}>Customer</th>
+                  <th style={{ padding: "10px 14px" }}>Task / Particular</th>
+                  <th style={{ padding: "10px 14px" }}>Amount</th>
+                  <th style={{ padding: "10px 14px" }}>Mode</th>
+                  <th style={{ padding: "10px 14px" }}>Notes</th>
+                  <th style={{ padding: "10px 14px", textAlign: "right" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredRecords.map((r) => (
                   <tr
                     key={r.id}
-                    style={{ borderBottom: "1px solid var(--border-subtle)" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    style={{
+                      borderBottom: "1px solid var(--border-subtle)",
+                      transition: "background 0.15s ease",
+                    }}
                   >
                     <td style={{ padding: "12px 14px", whiteSpace: "nowrap" }}>
-                      <div style={{ fontWeight: 600, color: "var(--text-bright)" }}>{r.paidDate}</div>
-                      <div style={{ fontSize: "0.6875rem", color: "var(--text-muted)" }}>{r.paidTime || "—"}</div>
+                      <div style={{ fontWeight: 700, color: "var(--text-bright)" }}>{r.paidDate}</div>
+                      {r.paidTime && (
+                        <div style={{ fontSize: "0.6875rem", color: "var(--text-muted)" }}>{r.paidTime}</div>
+                      )}
                     </td>
                     <td style={{ padding: "12px 14px", fontWeight: 700, color: "var(--text-bright)" }}>
                       {r.customerName}
@@ -264,18 +479,28 @@ export const DuePaymentsView: React.FC = () => {
                       {r.notes || "—"}
                     </td>
                     <td style={{ padding: "12px 14px", textAlign: "right" }}>
-                      <button
-                        onClick={() => {
-                          if (window.confirm(`Delete settlement record of ₹${r.amount} for ${r.customerName} and re-add due?`)) {
-                            deleteDuePayment(r.id);
-                          }
-                        }}
-                        className="btn btn-sm btn-danger-outline"
-                        style={{ padding: "4px 8px" }}
-                        title="Delete Settlement & Re-add Due"
-                      >
-                        <Trash2 size={12} />
-                      </button>
+                      <div style={{ display: "inline-flex", gap: "6px", alignItems: "center", justifyContent: "flex-end" }}>
+                        <button
+                          onClick={() => setEditingRecord(r)}
+                          className="btn btn-sm btn-outline"
+                          style={{ padding: "4px 8px" }}
+                          title="Edit Settlement Record"
+                        >
+                          <Edit2 size={12} />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Delete settlement record of ₹${r.amount} for ${r.customerName} and re-add due?`)) {
+                              deleteDuePayment(r.id);
+                            }
+                          }}
+                          className="btn btn-sm btn-danger-outline"
+                          style={{ padding: "4px 8px" }}
+                          title="Delete Settlement & Re-add Due"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -284,6 +509,17 @@ export const DuePaymentsView: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Edit Settlement Modal */}
+      {editingRecord && (
+        <EditDuePaymentModal
+          record={editingRecord}
+          onClose={() => setEditingRecord(null)}
+          onSave={async (updated) => {
+            await updateDuePayment(updated);
+          }}
+        />
+      )}
     </div>
   );
 };
