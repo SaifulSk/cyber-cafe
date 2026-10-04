@@ -13,7 +13,6 @@ import {
   deleteServiceMasterItem,
   settleCustomerDue,
 } from "../firebase/db";
-import { DEFAULT_SERVICE_MASTERS } from "../firebase/defaultData";
 
 interface DataContextType {
   tasks: TaskItem[];
@@ -266,7 +265,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         tasks,
         customers,
-        services: services.length > 0 ? services : (DEFAULT_SERVICE_MASTERS as any),
+        services,
         loading,
         activeFilterCategory,
         setActiveFilterCategory,

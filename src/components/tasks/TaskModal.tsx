@@ -229,27 +229,29 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               </div>
             )}
 
-            {/* Quick Service Picker from Master Menu */}
-            <div>
-              <label className="form-label" style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Select from Service Master Menu</span>
-                <span style={{ fontSize: "0.75rem", color: "var(--accent-primary)", fontWeight: 500 }}>
-                  Auto-fills cost & margin
-                </span>
-              </label>
-              <select
-                className="form-select"
-                value={selectedServiceId}
-                onChange={(e) => handleServiceSelect(e.target.value)}
-              >
-                <option value="">-- Choose Common Service (Recharge, AEPS, Bills, Cards) --</option>
-                {services.map((srv) => (
-                  <option key={srv.id} value={srv.id}>
-                    {srv.name} (Default Cost: ₹{srv.defaultIncurredCost} | Fee: ₹{srv.defaultFee})
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Service Picker from Master Menu (Only if user has created master services) */}
+            {services.length > 0 && (
+              <div>
+                <label className="form-label" style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>Select from Master Menu (Optional)</span>
+                  <span style={{ fontSize: "0.75rem", color: "var(--accent-primary)", fontWeight: 500 }}>
+                    Auto-fills rates
+                  </span>
+                </label>
+                <select
+                  className="form-select"
+                  value={selectedServiceId}
+                  onChange={(e) => handleServiceSelect(e.target.value)}
+                >
+                  <option value="">-- Choose from your Master Menu --</option>
+                  {services.map((srv) => (
+                    <option key={srv.id} value={srv.id}>
+                      {srv.name} {srv.defaultFee > 0 ? `(Cost: ₹${srv.defaultIncurredCost} | Fee: ₹${srv.defaultFee})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Title & Category */}
             <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "12px" }}>

@@ -122,11 +122,7 @@ export const subscribeToServices = (
   onError?: (error: any) => void
 ) => {
   const localKey = getLocalKey(userId, "services");
-  const defaultServices: ServiceMasterItem[] = DEFAULT_SERVICE_MASTERS.map((s) => ({
-    ...s,
-    userId,
-  }));
-  const localItems = loadLocal<ServiceMasterItem>(localKey, defaultServices);
+  const localItems = loadLocal<ServiceMasterItem>(localKey, []);
   onData(localItems);
 
   try {
@@ -134,40 +130,23 @@ export const subscribeToServices = (
     const unsubscribe = onSnapshot(
       srvRef,
       (snapshot) => {
-        if (snapshot.empty) {
-          // Initialize default services for this user if first time
-          seedDefaultServices(userId, defaultServices);
-          onData(defaultServices);
-        } else {
-          const services: ServiceMasterItem[] = [];
-          snapshot.forEach((docSnap) => {
-            services.push({ ...(docSnap.data() as ServiceMasterItem), id: docSnap.id });
-          });
-          saveLocal(localKey, services);
-          onData(services);
-        }
+        const services: ServiceMasterItem[] = [];
+        snapshot.forEach((docSnap) => {
+          services.push({ ...(docSnap.data() as ServiceMasterItem), id: docSnap.id });
+        });
+        saveLocal(localKey, services);
+        onData(services);
       },
       (error) => {
-        console.warn("Firestore services listener note (using defaults/local):", error.message);
+        console.warn("Firestore services listener note (using local cache):", error.message);
         if (onError) onError(error);
-        onData(loadLocal<ServiceMasterItem>(localKey, defaultServices));
+        onData(loadLocal<ServiceMasterItem>(localKey, []));
       }
     );
     return unsubscribe;
   } catch (err) {
     console.warn("Error setting up Firestore services listener:", err);
     return () => {};
-  }
-};
-
-const seedDefaultServices = async (userId: string, defaults: ServiceMasterItem[]) => {
-  try {
-    const srvRef = collection(db, "users", userId, "services");
-    for (const item of defaults) {
-      await setDoc(doc(srvRef, item.id), item);
-    }
-  } catch (err) {
-    console.warn("Could not seed default services to Firestore (offline or rules):", err);
   }
 };
 

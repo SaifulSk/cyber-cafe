@@ -165,14 +165,28 @@ export const MasterMenu: React.FC = () => {
             </span>
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-              gap: "16px",
-            }}
-          >
-            {services.map((srv) => {
+          {services.length === 0 ? (
+            <div className="glass-panel" style={{ padding: "48px 24px", textAlign: "center" }}>
+              <Layers size={36} style={{ margin: "0 auto 12px", opacity: 0.4 }} />
+              <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-bright)" }}>
+                No Master Services Configured Yet
+              </h3>
+              <p style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", maxWidth: "420px", margin: "6px auto 14px" }}>
+                Add your common services (e.g. Recharge, AEPS, Electric Bill, Ration Card, Voter Card) to create your custom Master Menu.
+              </p>
+              <button onClick={openAddServiceModal} className="btn btn-primary btn-sm">
+                <Plus size={14} /> Add First Service Item
+              </button>
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+                gap: "16px",
+              }}
+            >
+              {services.map((srv) => {
               const color = srv.color || getCategoryColor(srv.category);
               const margin = srv.defaultFee - srv.defaultIncurredCost;
               const marginPercent = srv.defaultFee > 0 ? ((margin / srv.defaultFee) * 100).toFixed(0) : 0;
@@ -285,6 +299,7 @@ export const MasterMenu: React.FC = () => {
               );
             })}
           </div>
+        )}
         </div>
       )}
 
