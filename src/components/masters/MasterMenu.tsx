@@ -5,7 +5,6 @@ import {
   Plus,
   Edit2,
   Trash2,
-  Sparkles,
   Smartphone,
   Fingerprint,
   Zap,
@@ -145,14 +144,7 @@ export const MasterMenu: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div
-        style={{
-          display: "flex",
-          gap: "8px",
-          borderBottom: "1px solid var(--border-subtle)",
-          paddingBottom: "10px",
-        }}
-      >
+      <div className="master-menu-tabs">
         <button
           onClick={() => setActiveTab("services")}
           className={`btn ${activeTab === "services" ? "btn-primary" : "btn-secondary"}`}
@@ -171,25 +163,6 @@ export const MasterMenu: React.FC = () => {
       {/* Tab 1: Services Master */}
       {activeTab === "services" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          <div
-            style={{
-              padding: "12px 18px",
-              background: "rgba(6, 182, 212, 0.08)",
-              border: "1px solid rgba(6, 182, 212, 0.2)",
-              borderRadius: "var(--radius-md)",
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              fontSize: "0.8125rem",
-              color: "var(--text-main)",
-            }}
-          >
-            <Sparkles size={18} style={{ color: "var(--accent-primary)", flexShrink: 0 }} />
-            <span>
-              These master categories appear when recording tasks. Selecting any category will automatically fill your standard cost, fee, and calculate profit.
-            </span>
-          </div>
-
           {services.length === 0 ? (
             <div className="glass-panel" style={{ padding: "48px 24px", textAlign: "center" }}>
               <Layers size={36} style={{ margin: "0 auto 12px", opacity: 0.4 }} />
@@ -204,111 +177,86 @@ export const MasterMenu: React.FC = () => {
               </button>
             </div>
           ) : (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-                gap: "16px",
-              }}
-            >
+            <div className="categories-grid">
               {services.map((srv) => {
-              const color = srv.color || getCategoryColor(srv.category);
+                const color = srv.color || getCategoryColor(srv.category);
 
-              return (
-                <div
-                  key={srv.id}
-                  className="glass-panel"
-                  style={{
-                    padding: "18px",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "space-between",
-                    gap: "14px",
-                    borderLeft: `4px solid ${color}`,
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "10px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                return (
+                  <div
+                    key={srv.id}
+                    className="glass-panel category-card"
+                    style={{
+                      borderLeft: `4px solid ${color}`,
+                    }}
+                  >
+                    <div className="category-card-header">
                       <div
+                        className="category-card-icon"
                         style={{
-                          width: "40px",
-                          height: "40px",
-                          borderRadius: "var(--radius-md)",
                           background: `${color}20`,
                           color: color,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
                         }}
                       >
-                        <CategoryIcon category={srv.category} size={20} />
+                        <CategoryIcon category={srv.category} size={18} />
                       </div>
-                      <div>
-                        <h4 style={{ fontSize: "0.9375rem", fontWeight: 700, color: "var(--text-bright)" }}>
-                          {srv.name}
-                        </h4>
-                        <span style={{ fontSize: "0.6875rem", color: color, fontWeight: 600 }}>
-                          Master Category
-                        </span>
+
+                      <div className="category-card-actions">
+                        <button
+                          onClick={() => openEditServiceModal(srv)}
+                          className="btn btn-sm btn-outline"
+                          title="Edit Master Category"
+                        >
+                          <Edit2 size={13} />
+                        </button>
+                        <button
+                          onClick={() => setDeleteTarget({ type: "category", id: srv.id, name: srv.name })}
+                          className="btn btn-sm btn-danger-outline"
+                          title="Delete Category"
+                        >
+                          <Trash2 size={13} />
+                        </button>
                       </div>
                     </div>
 
-                    <div style={{ display: "flex", gap: "4px" }}>
-                      <button
-                        onClick={() => openEditServiceModal(srv)}
-                        className="btn btn-sm btn-outline"
-                        style={{ padding: "4px 8px" }}
-                        title="Edit Master Category"
-                      >
-                        <Edit2 size={13} />
-                      </button>
-                      <button
-                        onClick={() => setDeleteTarget({ type: "category", id: srv.id, name: srv.name })}
-                        className="btn btn-sm btn-danger-outline"
-                        style={{ padding: "4px 8px" }}
-                        title="Delete Category"
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                    <div>
+                      <h4 className="category-card-title">{srv.name}</h4>
                     </div>
-                  </div>
 
-                  {/* Custom Fields Tags */}
-                  <div>
-                    <span style={{ fontSize: "0.6875rem", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>
-                      Dynamic Task Fields ({srv.customFields?.length || 0}):
-                    </span>
-                    {srv.customFields && srv.customFields.length > 0 ? (
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                        {srv.customFields.map((f) => (
-                          <span
-                            key={f.id}
-                            style={{
-                              fontSize: "0.75rem",
-                              padding: "2px 8px",
-                              borderRadius: "var(--radius-full)",
-                              background: "rgba(6, 182, 212, 0.1)",
-                              color: "var(--accent-primary)",
-                              border: "1px solid rgba(6, 182, 212, 0.25)",
-                              fontWeight: 600,
-                            }}
-                          >
-                            {f.name}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontStyle: "italic" }}>
-                        Standard task fields only
+                    {/* Custom Fields Tags */}
+                    <div>
+                      <span style={{ fontSize: "0.6875rem", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>
+                        Dynamic Task Fields ({srv.customFields?.length || 0}):
                       </span>
-                    )}
+                      {srv.customFields && srv.customFields.length > 0 ? (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                          {srv.customFields.map((f) => (
+                            <span
+                              key={f.id}
+                              style={{
+                                fontSize: "0.6875rem",
+                                padding: "2px 6px",
+                                borderRadius: "var(--radius-full)",
+                                background: "rgba(6, 182, 212, 0.1)",
+                                color: "var(--accent-primary)",
+                                border: "1px solid rgba(6, 182, 212, 0.25)",
+                                fontWeight: 600,
+                              }}
+                            >
+                              {f.name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: "0.6875rem", color: "var(--text-secondary)", fontStyle: "italic" }}>
+                          Standard task fields only
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

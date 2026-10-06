@@ -598,7 +598,11 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               {/* 3 Responsive Financial Columns (Requirement 7) */}
               <div className="task-modal-financials-grid">
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" style={{ color: "var(--text-secondary)" }}>
+                  <label
+                    className="form-label"
+                    style={{ color: "var(--text-secondary)", whiteSpace: "nowrap" }}
+                    title="Amount Incurred (Cost)"
+                  >
                     Amount Incurred (Cost)
                   </label>
                   <div style={{ position: "relative" }}>
@@ -633,8 +637,12 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 </div>
 
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" style={{ color: "var(--accent-primary)" }}>
-                    Amount Charged (Customer) *
+                  <label
+                    className="form-label"
+                    style={{ color: "var(--accent-primary)", whiteSpace: "nowrap" }}
+                    title="Amount Charged (Customer) *"
+                  >
+                    Amount Charged (Customer)&nbsp;*
                   </label>
                   <div style={{ position: "relative" }}>
                     <span
@@ -673,8 +681,12 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 </div>
 
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" style={{ color: "#34d399" }}>
-                    Amount Paid by Customer *
+                  <label
+                    className="form-label"
+                    style={{ color: "#34d399", whiteSpace: "nowrap" }}
+                    title="Amount Paid by Customer *"
+                  >
+                    Amount Paid by Customer&nbsp;*
                   </label>
                   <div style={{ position: "relative" }}>
                     <span
