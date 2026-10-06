@@ -638,8 +638,8 @@ body.modal-open {
 
 .task-modal-financials-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr) !important;
-  gap: 10px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
 }
 
 .task-modal-financials-grid .form-label {
@@ -650,17 +650,15 @@ body.modal-open {
   text-overflow: ellipsis;
 }
 
+/* For mobile, display financial fields in 3 separate rows */
 @media (max-width: 640px) {
   .task-modal-financials-grid {
-    grid-template-columns: repeat(3, 1fr) !important;
-    gap: 6px;
+    grid-template-columns: 1fr !important;
+    gap: 12px;
   }
   .task-modal-financials-grid .form-label {
-    font-size: 0.6875rem;
-  }
-  .task-modal-financials-grid .form-input {
-    padding: 8px 6px 8px 20px !important;
     font-size: 0.8125rem;
+    white-space: normal;
   }
 }
 

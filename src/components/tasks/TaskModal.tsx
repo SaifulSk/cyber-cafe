@@ -600,7 +600,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 <div className="form-group" style={{ margin: 0 }}>
                   <label
                     className="form-label"
-                    style={{ color: "var(--text-secondary)", whiteSpace: "nowrap" }}
+                    style={{ color: "var(--text-secondary)" }}
                     title="Amount Incurred (Cost)"
                   >
                     Amount Incurred (Cost)
@@ -639,7 +639,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 <div className="form-group" style={{ margin: 0 }}>
                   <label
                     className="form-label"
-                    style={{ color: "var(--accent-primary)", whiteSpace: "nowrap" }}
+                    style={{ color: "var(--accent-primary)" }}
                     title="Amount Charged (Customer) *"
                   >
                     Amount Charged (Customer)&nbsp;*
@@ -683,7 +683,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 <div className="form-group" style={{ margin: 0 }}>
                   <label
                     className="form-label"
-                    style={{ color: "#34d399", whiteSpace: "nowrap" }}
+                    style={{ color: "#34d399" }}
                     title="Amount Paid by Customer *"
                   >
                     Amount Paid by Customer&nbsp;*
