@@ -154,7 +154,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
           </p>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
           <button onClick={handleExportCSV} className="btn btn-secondary" title="Export current list to CSV">
             <Download size={15} /> Export CSV
           </button>

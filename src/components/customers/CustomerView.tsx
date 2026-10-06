@@ -140,7 +140,7 @@ export const CustomerView: React.FC = () => {
           />
         </div>
 
-        <div style={{ display: "flex", gap: "8px" }}>
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
           <button
             onClick={() => setFilterDueOnly(false)}
             className={`btn btn-sm ${!filterDueOnly ? "btn-primary" : "btn-secondary"}`}

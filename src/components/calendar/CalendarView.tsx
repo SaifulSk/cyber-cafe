@@ -190,7 +190,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         </div>
 
         {/* Navigation & Actions */}
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "var(--bg-card)", padding: "4px 8px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)" }}>
             <button
               onClick={prevMonth}
@@ -201,7 +201,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               <ChevronLeft size={15} />
             </button>
 
-            <span style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--text-bright)", minWidth: "140px", textAlign: "center" }}>
+            <span style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--text-bright)", minWidth: "120px", textAlign: "center" }}>
               {monthNames[month]} {year}
             </span>
 

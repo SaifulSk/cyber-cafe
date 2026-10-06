@@ -25,7 +25,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="top-navbar">
       {/* Left: Kendra Identity */}
-      <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: "1 1 auto", overflow: "hidden" }}>
         <div
           style={{
             width: "36px",
@@ -43,7 +43,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <ShieldCheck size={20} />
         </div>
 
-        <div style={{ minWidth: 0 }}>
+        <div style={{ minWidth: 0, overflow: "hidden" }}>
           <h1
             style={{
               fontSize: "1rem",
@@ -71,12 +71,12 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* Right Controls */}
-      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
         {/* Light / Dark Mode Toggle */}
         <button
           onClick={toggleTheme}
           className="btn btn-outline btn-sm"
-          style={{ padding: "7px 10px" }}
+          style={{ padding: "6px 8px" }}
           title={`Switch to ${theme === "light" ? "Dark" : "Light"} Mode`}
         >
           {theme === "light" ? <Moon size={15} /> : <Sun size={15} />}
@@ -84,7 +84,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </button>
 
         {/* New Task CTA */}
-        <button onClick={onOpenNewTask} className="btn btn-primary btn-sm">
+        <button onClick={onOpenNewTask} className="btn btn-primary btn-sm" style={{ padding: "6px 10px" }}>
           <Plus size={15} /> <span className="hide-mobile">New Task</span>
         </button>
 
@@ -92,7 +92,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <button
           onClick={onOpenProfile}
           className="btn btn-secondary btn-sm"
-          style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 10px" }}
+          style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 8px" }}
           title="Center Profile & Settings"
         >
           <div
@@ -117,11 +117,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           <Settings size={13} style={{ color: "var(--text-muted)" }} />
         </button>
 
-        {/* Sign Out Button */}
+        {/* Sign Out Button (desktop only; on mobile available in Profile settings) */}
         <button
           onClick={logoutUser}
-          className="btn btn-outline btn-sm"
-          style={{ padding: "7px 10px" }}
+          className="btn btn-outline btn-sm hide-mobile"
+          style={{ padding: "6px 8px" }}
           title="Sign Out"
         >
           <LogOut size={15} />

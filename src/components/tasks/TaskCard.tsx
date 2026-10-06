@@ -102,7 +102,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       </div>
 
       {/* Middle Row: Title & Customer Name */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", flexWrap: "wrap" }}>
         <div>
           <h4 style={{ fontSize: "0.9375rem", fontWeight: 700, color: "var(--text-bright)", marginBottom: "4px" }}>
             {task.title}
@@ -175,6 +175,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: "8px",
           borderTop: "1px solid var(--border-subtle)",
           paddingTop: "10px",
           marginTop: "4px",

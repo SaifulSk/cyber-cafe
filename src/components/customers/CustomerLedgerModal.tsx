@@ -300,7 +300,7 @@ export const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
 
           {/* Navigation Tabs for History */}
           <div>
-            <div style={{ display: "flex", gap: "8px", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "8px", marginBottom: "12px" }}>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "8px", marginBottom: "12px" }}>
               <button
                 type="button"
                 onClick={() => setActiveTab("tasks")}
